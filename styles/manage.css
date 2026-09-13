@@ -1,0 +1,448 @@
+@import "tailwindcss" source(none);
+@source "../manage.html";
+@source "../manage.js";
+@source "../ui-components.js";
+@source "../ui-icons.js";
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-line: var(--line);
+  --color-hover: var(--hover);
+  --color-danger: var(--danger);
+  --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: Consolas, ui-monospace, monospace;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --canvas: #f8fafc;
+    --paper: #ffffff;
+    --ink: #172033;
+    --muted: #64748b;
+    --accent: #3b63c5;
+    --line: #e2e8f0;
+    --hover: #eef3fd;
+    --danger: #b42335;
+  }
+  body.dark {
+    color-scheme: dark;
+    --canvas: #141b27;
+    --paper: #1b2433;
+    --ink: #e5ebf5;
+    --muted: #a4b1c6;
+    --accent: #9abbff;
+    --line: #334055;
+    --hover: #27364e;
+    --danger: #ff9cab;
+  }
+  body {
+    @apply m-0 bg-paper font-sans text-sm leading-normal text-ink antialiased;
+  }
+  [hidden] {
+    display: none !important;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  button {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-[13px] font-medium text-ink;
+  }
+  button:hover:not(:disabled) {
+    @apply border-accent/40 bg-hover;
+  }
+  button:disabled {
+    @apply cursor-default opacity-40;
+  }
+  a {
+    @apply text-accent no-underline;
+  }
+  a:hover {
+    @apply underline underline-offset-2;
+  }
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-accent/60;
+  }
+  input,
+  select,
+  textarea {
+    @apply rounded-lg border border-line bg-paper px-3 py-2 text-ink;
+  }
+  input[type="checkbox"] {
+    @apply m-0 size-4 shrink-0 cursor-pointer accent-accent;
+  }
+  input[type="file"] {
+    @apply mt-3 block w-full text-xs text-muted;
+  }
+  input[type="file"]::file-selector-button {
+    @apply mr-3 cursor-pointer rounded-md border-0 bg-hover px-3 py-1.5 font-medium text-ink;
+  }
+  h1 {
+    @apply m-0 text-[28px] font-semibold tracking-tight;
+  }
+  kbd {
+    @apply rounded border border-line bg-canvas px-1.5 py-0.5 font-mono text-[10px] text-muted;
+  }
+}
+
+@layer components {
+  /* Application shell and navigation. */
+  aside {
+    @apply fixed inset-y-0 left-0 flex w-56 flex-col border-r border-line bg-canvas px-4 py-6;
+  }
+  .brand {
+    @apply flex items-center gap-2.5 px-2 text-xl font-semibold tracking-tight whitespace-nowrap text-ink no-underline;
+  }
+  .brand:hover {
+    @apply no-underline;
+  }
+  .brand img {
+    @apply size-8;
+  }
+  nav {
+    @apply mt-8 overflow-auto;
+  }
+  nav button {
+    @apply mb-1 flex w-full items-center justify-between gap-2 border-transparent bg-transparent px-3 py-2.5 text-left font-normal text-muted;
+  }
+  nav button:hover:not(:disabled) {
+    @apply border-transparent text-ink;
+  }
+  nav button.active {
+    @apply border-line bg-paper font-medium text-ink shadow-xs;
+  }
+  nav button.active .nav-icon {
+    @apply text-accent;
+  }
+  .nav-name {
+    @apply flex min-w-0 items-center gap-2.5;
+  }
+  .nav-label {
+    @apply truncate;
+  }
+  .nav-icon {
+    @apply size-4 shrink-0 fill-none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .nav-count {
+    @apply shrink-0 rounded-md bg-paper/60 px-1.5 text-[11px] text-muted tabular-nums;
+  }
+  .subtle {
+    @apply justify-start border-transparent bg-transparent font-normal text-muted;
+  }
+  #new-folder {
+    @apply mt-2 flex items-center gap-2.5 px-3 text-xs;
+  }
+  .aside-bottom {
+    @apply mt-auto space-y-1 border-t border-line pt-4;
+  }
+  .aside-bottom button {
+    @apply flex w-full justify-start border-transparent bg-transparent px-3 text-xs font-normal text-muted;
+  }
+  main {
+    @apply ml-56 max-w-[1600px] px-10 pt-8 pb-6;
+  }
+  header {
+    @apply mb-7 flex items-center justify-between gap-5;
+  }
+  #summary {
+    @apply mt-1 text-xs text-muted;
+  }
+  button.primary {
+    @apply border-transparent bg-accent font-medium text-paper;
+  }
+  button.primary:hover:not(:disabled) {
+    @apply border-transparent bg-accent/90;
+  }
+  .toolbar {
+    @apply mb-6 flex items-center gap-2.5;
+  }
+  .search {
+    @apply flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-line bg-canvas px-3;
+  }
+  .search-icon {
+    @apply block size-4 shrink-0 text-muted;
+  }
+  .search input {
+    @apply h-10 min-w-0 w-full border-0 bg-transparent p-0 text-[13px];
+    line-height: normal;
+  }
+  .search:focus-within {
+    @apply border-accent/65;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .search input:focus-visible {
+    outline: none;
+  }
+  .search kbd {
+    @apply border-0 bg-transparent;
+  }
+
+  /* A collection is one component; links stay compact, aligned rows. */
+  .group {
+    @apply mb-5 overflow-hidden rounded-xl border border-line bg-paper pb-2;
+  }
+  .group-top {
+    @apply flex items-center gap-2.5 px-4 pt-4;
+  }
+  .group h2 {
+    @apply m-0 min-w-0 text-base font-semibold;
+  }
+  .group h2 button {
+    @apply block max-w-full truncate rounded border-0 bg-transparent p-0 text-left text-base font-semibold;
+  }
+  .group-date {
+    @apply mt-1 mr-4 mb-3 ml-4 text-[11px] text-muted;
+  }
+  .group-actions {
+    @apply mx-3 mb-2 flex flex-wrap items-center gap-1 border-b border-line pb-3;
+  }
+  .group-actions button {
+    @apply rounded-md border-transparent bg-transparent px-2 py-1 text-xs font-normal text-muted;
+  }
+  .group-actions button:first-child {
+    @apply bg-hover font-medium text-accent;
+  }
+  .group-actions button.danger {
+    @apply text-danger;
+  }
+  .group-actions select {
+    @apply max-w-36 px-1 py-0.5 text-xs;
+  }
+  .tab-row {
+    @apply mx-2 grid min-h-10 items-center gap-x-3 rounded-md px-2 py-1.5;
+    grid-template-columns:
+      16px 18px minmax(0, 1fr) minmax(70px, 140px)
+      160px 24px;
+  }
+  .tab-row:hover,
+  .tab-row:focus-within {
+    @apply bg-canvas;
+  }
+  .tab-row:has(input:checked) {
+    @apply bg-hover;
+  }
+  .tab-row a {
+    @apply min-w-0 truncate text-[13px];
+  }
+  .tab-row a[aria-busy="true"] {
+    @apply cursor-progress opacity-65;
+  }
+  .domain {
+    @apply truncate text-right text-[11px] text-muted;
+  }
+  .tab-date {
+    @apply text-right text-[11px] whitespace-nowrap text-muted tabular-nums;
+  }
+  .tab-row button {
+    @apply size-6 rounded border-transparent bg-transparent p-0 text-base font-normal text-muted;
+  }
+  .tab-row button:hover:not(:disabled) {
+    @apply border-transparent text-danger;
+  }
+  .site-mark {
+    @apply size-[18px] shrink-0 rounded-sm object-contain;
+  }
+  .empty {
+    @apply rounded-xl border border-dashed border-line px-5 py-16 text-center text-muted;
+  }
+  .empty img {
+    @apply mx-auto mb-4 size-12 opacity-70;
+  }
+  .empty h2 {
+    @apply mb-5 text-xl font-medium text-ink;
+  }
+  #selection {
+    @apply sticky top-3 z-10 mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-accent/25 bg-hover p-2.5 shadow-sm;
+  }
+  #selected-count {
+    @apply mr-auto pl-1 text-xs font-medium text-accent;
+  }
+  #selection button {
+    @apply px-2.5 py-1.5 text-xs;
+  }
+  footer {
+    @apply mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-4 text-[11px] text-muted;
+  }
+  footer button {
+    @apply border-transparent bg-transparent p-0 text-[11px] font-normal text-muted;
+  }
+  #drop-zone {
+    @apply mt-4 hidden rounded-lg border border-dashed border-accent p-6 text-center text-sm text-accent;
+  }
+  body.dragging #drop-zone {
+    @apply block;
+  }
+  .drag-over {
+    @apply outline outline-2 -outline-offset-2 outline-accent;
+  }
+  .tab-row.insert-before {
+    box-shadow: inset 0 2px var(--accent);
+  }
+  .tab-row.insert-after {
+    box-shadow: inset 0 -2px var(--accent);
+  }
+
+  /* Native dialogs with our own fields, actions and icon picker. */
+  dialog {
+    @apply m-auto w-[min(600px,92vw)] max-h-[90vh] overflow-auto rounded-xl border border-line bg-paper p-6 text-ink shadow-xl;
+  }
+  dialog::backdrop {
+    background: rgb(15 23 42 / 38%);
+  }
+  dialog h2 {
+    @apply mb-5 pr-8 text-xl font-semibold tracking-tight;
+  }
+  dialog p {
+    @apply my-3 text-xs leading-relaxed text-muted;
+  }
+  dialog p:empty {
+    @apply hidden;
+  }
+  .close {
+    @apply float-right -mt-1 -mr-1 size-8 rounded-md border-transparent bg-transparent p-0 text-xl font-normal text-muted;
+  }
+  textarea {
+    @apply h-52 w-full resize-y font-mono text-xs leading-relaxed;
+  }
+  .dialog-actions {
+    @apply mt-6 flex flex-wrap justify-end gap-2 border-t border-line pt-4;
+  }
+  .option {
+    @apply flex items-center gap-3 border-b border-line py-4 text-[13px];
+  }
+  .option select {
+    @apply ml-auto;
+  }
+  #status {
+    @apply fixed right-5 bottom-5 z-50 max-w-[min(560px,90vw)] rounded-lg border border-line bg-ink px-5 py-3 text-[13px] text-paper shadow-lg;
+  }
+  #prompt-input,
+  #prompt-select {
+    @apply w-full;
+  }
+  #folder-icons {
+    @apply mt-5 flex flex-wrap gap-2 border-0 p-0;
+  }
+  #folder-icons legend {
+    @apply mb-2.5 p-0 text-xs font-medium text-muted;
+  }
+  #folder-icons label {
+    @apply relative grid size-10 cursor-pointer place-items-center;
+  }
+  #folder-icons input {
+    @apply absolute inset-0 m-0 size-full cursor-pointer opacity-0;
+  }
+  #folder-icons .nav-icon {
+    @apply size-10 rounded-lg border border-line p-2.5;
+  }
+  #folder-icons input:checked + svg {
+    @apply border-accent bg-hover text-accent;
+  }
+  #folder-icons input:focus-visible + svg {
+    @apply outline outline-2 outline-offset-2 outline-accent/60;
+  }
+}
+
+@media (max-width: 1100px) {
+  .tab-row {
+    grid-template-columns: 16px 18px minmax(0, 1fr) 155px 24px;
+  }
+  .domain {
+    display: none;
+  }
+  main {
+    @apply px-6;
+  }
+}
+@media (max-width: 760px) {
+  aside {
+    @apply static w-auto border-r-0 border-b px-4 py-4;
+  }
+  nav {
+    @apply mt-4 flex gap-1 overflow-x-auto;
+  }
+  nav button {
+    @apply m-0 w-auto shrink-0;
+  }
+  #new-folder {
+    @apply mt-2;
+  }
+  .aside-bottom {
+    @apply mt-3 flex gap-2 border-0 pt-0;
+  }
+  .aside-bottom button {
+    @apply w-auto px-3 py-1.5;
+  }
+  main {
+    @apply m-0 px-4 pt-6;
+  }
+  h1 {
+    @apply text-2xl;
+  }
+  header {
+    @apply mb-5 gap-3;
+  }
+  header button {
+    @apply shrink-0 px-2.5 text-xs;
+  }
+}
+@media (max-width: 540px) {
+  .toolbar {
+    @apply flex-wrap;
+  }
+  .search {
+    flex-basis: 100%;
+  }
+  .toolbar > button {
+    @apply flex-1;
+  }
+  .tab-row {
+    @apply gap-x-2 gap-y-1;
+    grid-template-columns: 16px 18px minmax(0, 1fr) 24px;
+  }
+  .tab-row input,
+  .tab-row .site-mark,
+  .tab-row a,
+  .tab-row button {
+    grid-row: 1;
+  }
+  .tab-row a {
+    grid-column: 3;
+  }
+  .tab-row button {
+    grid-column: 4;
+  }
+  .tab-date {
+    @apply text-left;
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .group-top {
+    @apply px-3;
+  }
+  .group-actions {
+    @apply mx-2;
+  }
+  dialog {
+    @apply p-5;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  a {
+    transition:
+      background-color 100ms,
+      color 100ms;
+  }
+}

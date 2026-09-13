@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>TabTuck</title>
+    <link rel="stylesheet" href="manage.css" />
+    <link rel="icon" href="icons/48.png" />
+  </head>
+  <body>
+    <aside aria-label="Library sidebar">
+      <a class="brand" href="manage.html"
+        ><img src="icons/48.png" alt="" />TabTuck</a
+      >
+      <nav id="navigation" aria-label="Saved tabs"></nav>
+      <button id="new-folder" class="subtle">+ New folder</button>
+      <div class="aside-bottom">
+        <button id="transfer-open">Import / Export</button
+        ><button id="settings-open">Options</button>
+      </div>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <h1 id="heading">All tabs</h1>
+          <p id="summary">Loading your library…</p>
+        </div>
+        <button class="primary" id="save-window">Save this window</button>
+      </header>
+      <div class="toolbar">
+        <label class="search"
+          ><svg
+            class="search-icon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+          >
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m16 16 4.5 4.5" /></svg
+          ><input
+            id="search"
+            type="search"
+            placeholder="Search saved tabs"
+            aria-label="Search saved tabs"
+          /><kbd>/</kbd></label
+        ><button id="restore-all">Restore all</button
+        ><button id="undo">Undo delete</button>
+      </div>
+      <div id="selection" hidden>
+        <span id="selected-count"></span
+        ><button id="restore-selected">Restore selected</button
+        ><button id="move-selected">Move selected</button
+        ><button id="delete-selected">Delete selected</button
+        ><button id="clear-selected">Clear</button>
+      </div>
+      <div id="groups"></div>
+      <div id="drop-zone">Drop tabs here to create a new group</div>
+      <footer>
+        <span>Save current tab <kbd>Alt</kbd> + <kbd>C</kbd></span
+        ><span>Show TabTuck <kbd>Alt</kbd> + <kbd>Q</kbd></span
+        ><button id="shortcuts">Change shortcuts</button>
+      </footer>
+    </main>
+    <div id="status" role="status" hidden></div>
+    <dialog id="transfer" aria-labelledby="transfer-title">
+      <form method="dialog">
+        <button class="close" aria-label="Close">×</button>
+        <h2 id="transfer-title">Import / Export</h2>
+        <textarea
+          id="import-text"
+          aria-label="Import text"
+          placeholder="https://example.com/ | Example Domain"
+        ></textarea
+        ><input
+          type="file"
+          id="import-file"
+          accept=".txt,.json,text/plain,application/json"
+        />
+        <div class="dialog-actions">
+          <button type="button" id="import" class="primary">Import tabs</button
+          ><button type="button" id="export-json">Backup as JSON</button
+          ><button type="button" id="export-text">Export as text</button>
+        </div>
+        <p id="import-result" role="status"></p>
+      </form>
+    </dialog>
+    <dialog id="settings" aria-labelledby="settings-title">
+      <form method="dialog">
+        <button class="close" aria-label="Close">×</button>
+        <h2 id="settings-title">Options</h2>
+        <label class="option"
+          ><input type="checkbox" data-setting="keepRestored" /> Keep tabs in
+          the list after restoring</label
+        ><label class="option"
+          ><input type="checkbox" data-setting="deduplicate" /> Skip URLs
+          already saved (close the duplicate tab)</label
+        ><label class="option"
+          ><input type="checkbox" data-setting="showAfterSave" /> Show TabTuck
+          after saving</label
+        ><label class="option"
+          >Appearance
+          <select data-setting="theme">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="system">System</option>
+          </select></label
+        >
+        <p id="command-status"></p>
+        <div class="dialog-actions">
+          <button type="button" id="settings-save" class="primary">
+            Save options
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="prompt" aria-labelledby="prompt-title">
+      <form id="prompt-form">
+        <h2 id="prompt-title"></h2>
+        <p id="prompt-description"></p>
+        <input id="prompt-input" aria-label="Name" /><select
+          id="prompt-select"
+          aria-label="Destination"
+        ></select>
+        <fieldset id="folder-icons" hidden></fieldset>
+        <div class="dialog-actions">
+          <button type="button" id="prompt-cancel">Cancel</button
+          ><button type="submit" class="primary">Confirm</button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="manage.js"></script>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "TabTuck",
+  "version": "1.1.0",
+  "description": "Save, organize and restore tab groups in the same browser window.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "unlimitedStorage",
+    "contextMenus",
+    "favicon"
+  ],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": {
+    "default_title": "Show TabTuck",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "options_page": "manage.html#settings",
+  "commands": {
+    "save-current": {
+      "suggested_key": { "default": "Alt+C" },
+      "description": "Save the current tab"
+    },
+    "show-manager": {
+      "suggested_key": { "default": "Alt+Q" },
+      "description": "Show TabTuck"
+    }
+  }
+}

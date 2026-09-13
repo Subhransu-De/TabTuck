@@ -1,0 +1,5 @@
+node_modules/
+dist/
+/manage.css
+bun.lock
+*.ps1
