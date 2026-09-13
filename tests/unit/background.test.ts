@@ -1,16 +1,24 @@
+import type { State, CaptureMode } from "../../src/shared/types.ts";
 import { test, expect, beforeEach } from "bun:test";
-import { defaults, group, uid } from "./model.js";
-let stored, tabs, created, removed, failWrite, failUrl;
+import { defaults, group, uid } from "../../src/shared/model.ts";
+type TestTab = Partial<chrome.tabs.Tab> & { id: number };
+let stored: State;
+let tabs: TestTab[];
+let created: chrome.tabs.CreateProperties[];
+let removed: number[];
+let failWrite: boolean;
+let failUrl: string;
 const event = { addListener() {} };
-let toolbarClick, installed;
-const menuItems = [];
-globalThis.chrome = {
+let toolbarClick: (tab: TestTab) => Promise<unknown>;
+let installed: () => void;
+const menuItems: chrome.contextMenus.CreateProperties[] = [];
+const chromeMock = {
   runtime: {
     id: "test",
-    getURL: (path) => "chrome-extension://test/" + path,
+    getURL: (path: string) => "chrome-extension://test/" + path,
     onMessage: event,
     onInstalled: {
-      addListener(fn) {
+      addListener(fn: typeof installed) {
         installed = fn;
       },
     },
@@ -18,34 +26,35 @@ globalThis.chrome = {
   storage: {
     local: {
       get: async () => ({ state: structuredClone(stored) }),
-      set: async ({ state }) => {
+      set: async ({ state }: { state: State }) => {
         if (failWrite) throw new Error("Disk full");
         stored = structuredClone(state);
       },
     },
   },
   tabs: {
-    query: async ({ windowId }) => tabs.filter((t) => t.windowId === windowId),
-    get: async (id) => tabs.find((t) => t.id === id),
-    create: async (args) => {
+    query: async ({ windowId }: chrome.tabs.QueryInfo) =>
+      tabs.filter((t) => t.windowId === windowId),
+    get: async (id: number) => tabs.find((t) => t.id === id)!,
+    create: async (args: chrome.tabs.CreateProperties) => {
       if (args.url === failUrl) throw new Error("Cannot open");
       created.push(args);
       const tab = { ...args, id: 100 + created.length };
       tabs.push(tab);
       return tab;
     },
-    update: async (id, update) =>
+    update: async (id: number, update: chrome.tabs.UpdateProperties) =>
       Object.assign(
-        tabs.find((t) => t.id === id),
+        tabs.find((t) => t.id === id)!,
         update,
       ),
-    remove: async (id) => {
+    remove: async (id: number) => {
       removed.push(id);
       tabs = tabs.filter((t) => t.id !== id);
     },
   },
   windows: {
-    get: async (id) => {
+    get: async (id: number) => {
       if (id !== 7 && id !== 8) throw new Error("Window closed");
       return { id };
     },
@@ -53,7 +62,7 @@ globalThis.chrome = {
   },
   action: {
     onClicked: {
-      addListener(fn) {
+      addListener(fn: typeof toolbarClick) {
         toolbarClick = fn;
       },
     },
@@ -61,18 +70,21 @@ globalThis.chrome = {
   commands: { onCommand: event },
   contextMenus: {
     onClicked: event,
-    removeAll(callback) {
+    removeAll(callback: () => void) {
       menuItems.length = 0;
       callback();
     },
-    create(item) {
+    create(item: chrome.contextMenus.CreateProperties) {
       menuItems.push(item);
     },
   },
 };
-const { capture, restore, dispatch, serial } = await import("./background.js");
+// This mock implements only the Chrome API surface exercised by these tests.
+globalThis.chrome = chromeMock as unknown as typeof chrome;
+const { capture, restore, dispatch, serial } =
+  await import("../../src/background/background.ts");
 beforeEach(() => {
-  stored = { groups: [], settings: { ...defaults }, trash: [] };
+  stored = { version: 1, groups: [], settings: { ...defaults }, trash: [] };
   tabs = [
     {
       id: 1,
@@ -108,10 +120,11 @@ test("manual link order supports up, down, self-drop and cross-group insertion",
     group(
       [1, 2, 3].map((id) => ({
         id: String(id),
+        title: String(id),
         url: `https://example.com/${id}`,
       })),
     ),
-    group([{ id: "4", url: "https://example.com/4" }]),
+    group([{ id: "4", title: "4", url: "https://example.com/4" }]),
   ];
   const [source, target] = stored.groups;
   const order = () => stored.groups[0].tabs.map((t) => t.id);
@@ -207,9 +220,16 @@ test("concurrent imports are serialized without losing groups", async () => {
 });
 
 test("all capture modes protect pinned and grouped tabs regardless of old preferences", async () => {
-  stored.settings.includePinned = true;
+  Object.assign(stored.settings, { includePinned: true });
   tabs[0].groupId = 42;
-  for (const mode of ["all", "current", "selected", "other", "left", "right"]) {
+  for (const mode of [
+    "all",
+    "current",
+    "selected",
+    "other",
+    "left",
+    "right",
+  ] satisfies CaptureMode[]) {
     await capture(mode, 7, 1);
     await capture(mode, 7, 2);
   }
@@ -224,7 +244,11 @@ test("toolbar opens the manager in the same window without saving or closing tab
   expect(stored.groups).toEqual([]);
   expect(tabs.filter((t) => t.id < 100)).toEqual(initialTabs);
   expect(created).toEqual([
-    { windowId: 7, url: "chrome-extension://test/manage.html", active: true },
+    {
+      windowId: 7,
+      url: "chrome-extension://test/manager/manage.html",
+      active: true,
+    },
   ]);
   await toolbarClick(tabs[0]);
   expect(created.length).toBe(1);

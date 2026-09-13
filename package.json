@@ -4,24 +4,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test",
-    "test:browser": "bun browser-check.mjs",
-    "build": "bun run build:css && bun scripts/build.mjs && web-ext build --source-dir dist/TabTuck --artifacts-dir dist --filename TabTuck.zip --overwrite-dest",
-    "build:css": "tailwindcss -i styles/manage.css -o manage.css --minify",
-    "dev:css": "tailwindcss -i styles/manage.css -o manage.css --watch",
+    "test": "bun test tests/unit",
+    "test:browser": "bun tests/browser/browser-check.ts",
+    "build": "bun run typecheck && bun scripts/build.ts && bun run build:css && web-ext build --source-dir dist/TabTuck --artifacts-dir dist --filename TabTuck.zip --overwrite-dest",
+    "build:css": "tailwindcss -i src/manager/manage.css -o dist/TabTuck/manager/manage.css --minify",
+    "dev:css": "tailwindcss -i src/manager/manage.css -o dist/TabTuck/manager/manage.css --watch",
     "lint:js": "eslint . --max-warnings 0",
     "format": "prettier --write .",
-    "check": "bun run lint && bun run format:check && bun test && bun run build && bun run lint:extension",
-    "lint:css": "stylelint \"styles/**/*.css\" --max-warnings 0",
+    "check": "bun run lint && bun run format:check && bun run test && bun run build && bun run lint:extension",
+    "lint:css": "stylelint \"src/**/*.css\" --max-warnings 0",
     "format:check": "prettier --check .",
-    "lint:extension": "bun scripts/lint-extension.mjs",
+    "lint:extension": "bun scripts/lint-extension.ts",
     "lint": "bun run lint:js && bun run lint:css",
-    "test:restore": "bun restore-ui-check.mjs",
-    "audit:dependencies": "bun audit --audit-level high"
+    "test:restore": "bun tests/browser/restore-ui-check.ts",
+    "audit:dependencies": "bun audit --audit-level high",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/cli": "^4.3.3",
+    "@types/bun": "^1.4.2",
+    "@types/chrome": "^0.2.9",
     "eslint": "^10.10.0",
     "globals": "^17.12.0",
     "playwright": "^1.63.0",
@@ -29,6 +32,8 @@
     "stylelint": "^17.15.0",
     "stylelint-config-recommended": "^18.0.0",
     "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.70.0",
     "web-ext": "^10.6.0"
   }
 }

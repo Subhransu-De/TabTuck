@@ -1,12 +1,13 @@
-export const defaults = {
+import type { SavedTab, TabGroup, Settings } from "./types.ts";
+export const defaults: Settings = {
   keepRestored: false,
   deduplicate: false,
   showAfterSave: true,
   theme: "light",
 };
 export const uid = () => crypto.randomUUID();
-export function groupBySites(groups) {
-  const sites = new Map();
+export function groupBySites(groups: TabGroup[]): TabGroup[] {
+  const sites = new Map<string, TabGroup>();
   for (const source of [...groups].sort((a, b) => b.createdAt - a.createdAt)) {
     for (const tab of source.tabs) {
       const url = new URL(tab.url);
@@ -17,25 +18,31 @@ export function groupBySites(groups) {
           name: site,
           createdAt: source.createdAt,
           site: true,
+          starred: false,
+          locked: false,
+          folder: "",
           tabs: [],
         });
       const addedAt = tab.addedAt ?? source.createdAt;
-      sites.get(site).createdAt = Math.max(sites.get(site).createdAt, addedAt);
+      sites.get(site)!.createdAt = Math.max(
+        sites.get(site)!.createdAt,
+        addedAt,
+      );
       sites
-        .get(site)
+        .get(site)!
         .tabs.push({ ...tab, addedAt, sourceLocked: source.locked });
     }
   }
   return [...sites.values()]
     .map((site) => ({
       ...site,
-      tabs: site.tabs.sort((a, b) => b.addedAt - a.addedAt),
+      tabs: site.tabs.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)),
     }))
     .sort((a, b) => b.createdAt - a.createdAt);
 }
-export function safeUrl(value) {
+export function safeUrl(value: string | undefined) {
   try {
-    const url = new URL(value);
+    const url = new URL(value ?? "");
     return ["http:", "https:", "file:", "ftp:"].includes(url.protocol)
       ? url.href
       : null;
@@ -43,7 +50,7 @@ export function safeUrl(value) {
     return null;
   }
 }
-export function group(tabs, name = "") {
+export function group(tabs: SavedTab[], name = ""): TabGroup {
   return {
     id: uid(),
     name,
@@ -54,42 +61,54 @@ export function group(tabs, name = "") {
     tabs,
   };
 }
-export function parseImport(text) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isTimestamp(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+export function parseImport(text: string): TabGroup[] {
   if (!text.trim())
     throw new Error("Paste an export or choose a backup file first.");
   if (/^[[{]/.test(text.trim())) {
-    let data;
+    let data: unknown;
     try {
       data = JSON.parse(text);
     } catch {
       throw new Error("The JSON backup is invalid.");
     }
-    const groups = Array.isArray(data) ? data : data.groups;
+    const groups = Array.isArray(data)
+      ? data
+      : isRecord(data)
+        ? data.groups
+        : undefined;
     if (!Array.isArray(groups))
       throw new Error("This backup does not contain groups.");
     return groups
-      .map((g) => {
-        if (!Array.isArray(g.tabs))
+      .map((g: unknown) => {
+        if (!isRecord(g) || !Array.isArray(g.tabs))
           throw new Error("A backup group has no tabs.");
         return {
           ...group([], typeof g.name === "string" ? g.name : ""),
-          createdAt: Number.isFinite(g.createdAt) ? g.createdAt : Date.now(),
+          createdAt: isTimestamp(g.createdAt) ? g.createdAt : Date.now(),
           starred: !!g.starred,
           locked: !!g.locked,
           folder: typeof g.folder === "string" ? g.folder : "",
           folderIcon:
             typeof g.folderIcon === "string" ? g.folderIcon : "folder",
-          tabs: g.tabs.map((t) => {
-            const url = safeUrl(t.url);
+          tabs: g.tabs.map((t: unknown) => {
+            if (!isRecord(t))
+              throw new Error("The backup contains an invalid tab.");
+            const url = safeUrl(typeof t.url === "string" ? t.url : undefined);
             if (!url)
               throw new Error("The backup contains an unsupported URL.");
             return {
               id: uid(),
               url,
               title: typeof t.title === "string" ? t.title : url,
-              addedAt: Number.isFinite(t.addedAt)
+              addedAt: isTimestamp(t.addedAt)
                 ? t.addedAt
-                : Number.isFinite(g.createdAt)
+                : isTimestamp(g.createdAt)
                   ? g.createdAt
                   : Date.now(),
             };
@@ -98,8 +117,8 @@ export function parseImport(text) {
       })
       .filter((g) => g.tabs.length);
   }
-  const groups = [];
-  let tabs = [];
+  const groups: TabGroup[] = [];
+  let tabs: SavedTab[] = [];
   const flush = () => {
     if (tabs.length) groups.push(group(tabs));
     tabs = [];
@@ -123,7 +142,7 @@ export function parseImport(text) {
   flush();
   return groups;
 }
-export function exportText(groups) {
+export function exportText(groups: TabGroup[]) {
   return groups
     .map((g) =>
       g.tabs

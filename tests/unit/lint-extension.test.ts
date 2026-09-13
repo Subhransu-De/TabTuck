@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { isFirefoxOnly } from "./lint-extension.mjs";
+import { isFirefoxOnly, parseReport } from "../../scripts/lint-extension.ts";
 
 test("Chromium exceptions never hide other invalid permissions or source errors", () => {
   expect(
@@ -22,4 +22,25 @@ test("Chromium exceptions never hide other invalid permissions or source errors"
   expect(isFirefoxOnly({ file: "manifest.json", code: "JSON_INVALID" })).toBe(
     false,
   );
+});
+
+test("extension reports reject malformed JSON shapes before filtering diagnostics", () => {
+  for (const report of [
+    null,
+    {},
+    { errors: [], warnings: [null] },
+    { errors: [{ code: 1 }], warnings: [] },
+    { errors: [], warnings: [{ code: "OTHER", message: 1 }] },
+  ])
+    expect(() => parseReport(JSON.stringify(report))).toThrow(
+      "Invalid web-ext report",
+    );
+  expect(
+    parseReport(
+      '{"errors":[],"warnings":[{"code":"OTHER","message":"Synthetic diagnostic"}]}',
+    ),
+  ).toEqual({
+    errors: [],
+    warnings: [{ code: "OTHER", message: "Synthetic diagnostic" }],
+  });
 });

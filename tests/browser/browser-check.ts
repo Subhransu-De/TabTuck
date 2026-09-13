@@ -1,3 +1,5 @@
+import { parseImport } from "../../src/shared/model.ts";
+import type { Message, MessageResult, Reply } from "../../src/shared/types.ts";
 // Run with HELIUM_EXECUTABLE and TABTUCK_TEST_DIR set to an isolated artifact directory.
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
@@ -7,7 +9,7 @@ if (!artifactDir || !process.env.HELIUM_EXECUTABLE)
   throw new Error(
     "Set HELIUM_EXECUTABLE and TABTUCK_TEST_DIR; never use a personal browser profile.",
   );
-const extension = import.meta.dirname;
+const extension = path.resolve(import.meta.dirname, "../../dist/TabTuck");
 const context = await chromium.launchPersistentContext(
   path.join(artifactDir, "profile"),
   {
@@ -21,7 +23,7 @@ const context = await chromium.launchPersistentContext(
     viewport: { width: 1400, height: 900 },
   },
 );
-const errors = [];
+const errors: string[] = [];
 context.on("page", (page) =>
   page.on("pageerror", (error) => errors.push(error.message)),
 );
@@ -31,22 +33,22 @@ try {
     (await context.waitForEvent("serviceworker"));
   const id = new URL(worker.url()).host;
   const page = await context.newPage();
-  await page.goto(`chrome-extension://${id}/manage.html`);
+  await page.goto(`chrome-extension://${id}/manager/manage.html`);
   await page.waitForFunction(() =>
-    document.querySelector("#summary").textContent.includes("0 saved"),
+    document.querySelector("#summary")?.textContent?.includes("0 saved"),
   );
-  const invoke = (message) =>
+  const invoke = <M extends Message>(message: M): Promise<MessageResult<M>> =>
     page.evaluate(async (message) => {
-      const r = await chrome.runtime.sendMessage(message);
+      const r: Reply<M> = await chrome.runtime.sendMessage(message);
       if (!r.ok) throw new Error(r.error);
       return r.result;
     }, message);
   const currentWindow = await page.evaluate(
-    async () => (await chrome.tabs.getCurrent()).windowId,
+    async () => (await chrome.tabs.getCurrent())!.windowId,
   );
   const otherWindow = await worker.evaluate(
     async () =>
-      (await chrome.windows.create({ url: "https://example.net/?untouched" }))
+      (await chrome.windows.create({ url: "https://example.net/?untouched" }))!
         .id,
   );
   await worker.evaluate(async (windowId) => {
@@ -65,7 +67,7 @@ try {
       url: "https://example.org/?grouped",
     });
     await chrome.tabs.group({
-      tabIds: [grouped.id],
+      tabIds: [grouped.id!],
       createProperties: { windowId },
     });
   }, currentWindow);
@@ -86,7 +88,7 @@ try {
   assert.equal(untouched, 1);
   await page.locator(".tab-row a").click();
   await page.waitForFunction(() =>
-    document.querySelector("#summary").textContent.startsWith("0 saved"),
+    document.querySelector("#summary")?.textContent?.startsWith("0 saved"),
   );
   const restored = await worker.evaluate(async () =>
     chrome.tabs.query({ url: "https://example.com/?capture-a" }),
@@ -102,7 +104,7 @@ try {
   await page.locator("#import").click();
   await page.waitForFunction(
     () =>
-      document.querySelector("#import-result").textContent ===
+      document.querySelector("#import-result")?.textContent ===
       "Imported 3 tabs in 2 groups.",
   );
   await page.locator("#transfer .close").click();
@@ -117,16 +119,17 @@ try {
     .getByRole("button", { name: "Unlock", exact: true })
     .waitFor();
   const lockedId = await alphaGroup.getAttribute("data-group");
+  assert.ok(lockedId);
   await invoke({ type: "restore", groupId: lockedId });
   assert.equal(
-    (await invoke({ type: "state" })).groups.find((g) => g.id === lockedId).tabs
-      .length,
+    (await invoke({ type: "state" })).groups.find((g) => g.id === lockedId)!
+      .tabs.length,
     2,
   );
   await invoke({ type: "delete", groupId: lockedId });
   assert.equal(
-    (await invoke({ type: "state" })).groups.find((g) => g.id === lockedId).tabs
-      .length,
+    (await invoke({ type: "state" })).groups.find((g) => g.id === lockedId)!
+      .tabs.length,
     2,
   );
   await alphaGroup.getByRole("button", { name: "Unlock", exact: true }).click();
@@ -165,10 +168,10 @@ try {
   await page.locator("#export-json").click();
   const download = await downloadEvent;
   await download.saveAs(path.join(artifactDir, "synthetic-backup.json"));
-  const backup = await Bun.file(
-    path.join(artifactDir, "synthetic-backup.json"),
-  ).json();
-  assert.equal(backup.groups[0].tabs[0].title, "Gamma");
+  const backup = parseImport(
+    await Bun.file(path.join(artifactDir, "synthetic-backup.json")).text(),
+  );
+  assert.equal(backup[0].tabs[0].title, "Gamma");
   await page.locator("#transfer .close").click();
   await page.screenshot({ path: path.join(artifactDir, "desktop.png") });
   await page.setViewportSize({ width: 390, height: 844 });

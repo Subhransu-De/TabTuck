@@ -1,5 +1,11 @@
 import { test, expect } from "bun:test";
-import { parseImport, exportText, safeUrl, groupBySites } from "./model.js";
+import {
+  parseImport,
+  exportText,
+  safeUrl,
+  groupBySites,
+  group,
+} from "../../src/shared/model.ts";
 test("OneTab import preserves groups, duplicate URLs and titles with separators", () => {
   const raw =
     "https://example.com/ | A | B\r\nhttps://example.com/ | Duplicate\r\n\r\nhttps://example.org/ | Other";
@@ -33,17 +39,19 @@ test("JSON backup roundtrip preserves group metadata and gives imported items fr
 test("site view merges hostnames without modifying source groups and keeps dates and locks", () => {
   const groups = [
     {
+      ...group([]),
       id: "old",
       createdAt: 1000,
       locked: true,
-      tabs: [{ id: "a", url: "https://www.example.com/a" }],
+      tabs: [{ id: "a", title: "A", url: "https://www.example.com/a" }],
     },
     {
+      ...group([]),
       id: "new",
       createdAt: 3000,
       tabs: [
-        { id: "b", url: "https://example.com/b", addedAt: 4000 },
-        { id: "c", url: "https://example.org/c", addedAt: 2000 },
+        { id: "b", title: "B", url: "https://example.com/b", addedAt: 4000 },
+        { id: "c", title: "C", url: "https://example.org/c", addedAt: 2000 },
       ],
     },
   ];

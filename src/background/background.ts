@@ -1,13 +1,21 @@
-import { defaults, uid, group, safeUrl, parseImport } from "./model.js";
-import { folderIcons } from "./ui-icons.js";
-let queue = Promise.resolve();
-export function serial(fn) {
+import type {
+  State,
+  SavedTab,
+  TabGroup,
+  Message,
+  CaptureMode,
+  RestoreOptions,
+} from "../shared/types.ts";
+import { defaults, uid, group, safeUrl, parseImport } from "../shared/model.ts";
+import { folderIcons } from "../shared/folder-icons.ts";
+let queue: Promise<unknown> = Promise.resolve();
+export function serial<T>(fn: () => T | Promise<T>) {
   const task = queue.then(fn);
   queue = task.catch(() => {});
   return task;
 }
-export async function read() {
-  const { state } = await chrome.storage.local.get("state");
+export async function read(): Promise<State> {
+  const { state } = await chrome.storage.local.get<{ state?: State }>("state");
   if (state) {
     for (const g of [
       ...state.groups,
@@ -20,18 +28,22 @@ export async function read() {
     state || { version: 1, groups: [], settings: { ...defaults }, trash: [] }
   );
 }
-async function write(state) {
+async function write(state: State) {
   await chrome.storage.local.set({ state });
 }
-export async function show(windowId) {
-  const url = chrome.runtime.getURL("manage.html");
+export async function show(windowId: number) {
+  const url = chrome.runtime.getURL("manager/manage.html");
   const tabs = await chrome.tabs.query({ windowId });
   const existing = tabs.find((t) => t.url?.split("#")[0] === url);
   return existing
-    ? chrome.tabs.update(existing.id, { active: true })
+    ? chrome.tabs.update(existing.id!, { active: true })
     : chrome.tabs.create({ windowId, url, active: true });
 }
-export async function capture(mode, windowId, referenceId) {
+export async function capture(
+  mode: CaptureMode,
+  windowId: number,
+  referenceId?: number,
+) {
   const state = await read();
   const tabs = await chrome.tabs.query({ windowId });
   const active =
@@ -48,9 +60,9 @@ export async function capture(mode, windowId, referenceId) {
           : mode === "other"
             ? t.id !== active?.id
             : mode === "left"
-              ? t.index < active?.index
+              ? t.index < (active?.index ?? -1)
               : mode === "right"
-                ? t.index > active?.index
+                ? t.index > (active?.index ?? Infinity)
                 : true),
   );
   if (!chosen.length) {
@@ -62,10 +74,10 @@ export async function capture(mode, windowId, referenceId) {
       ? state.groups.flatMap((g) => g.tabs.map((t) => t.url))
       : [],
   );
-  const saved = [];
+  const saved: SavedTab[] = [];
   for (const tab of chosen) {
     const url = safeUrl(tab.url || tab.pendingUrl);
-    if (!seen.has(url)) {
+    if (url && !seen.has(url)) {
       saved.push({
         id: uid(),
         url,
@@ -83,13 +95,13 @@ export async function capture(mode, windowId, referenceId) {
   let notClosed = 0;
   for (const tab of chosen) {
     try {
-      const latest = await chrome.tabs.get(tab.id);
+      const latest = await chrome.tabs.get(tab.id!);
       if (
         !latest.pinned &&
         (latest.groupId === undefined || latest.groupId === -1) &&
         (latest.url || latest.pendingUrl) === (tab.url || tab.pendingUrl)
       )
-        await chrome.tabs.remove(tab.id);
+        await chrome.tabs.remove(tab.id!);
       else notClosed++;
     } catch {
       notClosed++;
@@ -97,7 +109,7 @@ export async function capture(mode, windowId, referenceId) {
   }
   return { count: saved.length, notClosed };
 }
-export async function restore(message, windowId) {
+export async function restore(message: RestoreOptions, windowId: number) {
   const state = await read();
   await chrome.windows.get(windowId); // Never fall back to a new or unrelated window.
   let count = 0;
@@ -124,19 +136,26 @@ export async function restore(message, windowId) {
   await write(state);
   return { count, failed };
 }
-export async function dispatch(m, sender = {}) {
+export async function dispatch(
+  m: Message,
+  sender: chrome.runtime.MessageSender = {},
+) {
   if (m.type === "state") return read();
   const windowId =
     sender.tab?.windowId ?? (await chrome.windows.getLastFocused()).id;
+  if (windowId === undefined)
+    throw new Error("No destination window is available.");
   if (m.type === "show") return show(windowId);
   if (m.type === "capture") return capture(m.mode, windowId);
   if (m.type === "restore") return restore(m, windowId);
   const state = await read();
   const g = state.groups.find((g) => g.id === m.groupId);
   if (m.type === "settings") {
-    for (const key of Object.keys(defaults))
-      if (typeof m.settings[key] === typeof defaults[key])
+    for (const key of ["keepRestored", "deduplicate", "showAfterSave"] as const)
+      if (typeof m.settings[key] === "boolean")
         state.settings[key] = m.settings[key];
+    if (typeof m.settings.theme === "string")
+      state.settings.theme = m.settings.theme;
   } else if (m.type === "import") {
     const groups = parseImport(m.text);
     state.groups.unshift(...groups);
@@ -146,19 +165,20 @@ export async function dispatch(m, sender = {}) {
       tabs: groups.reduce((n, g) => n + g.tabs.length, 0),
     };
   } else if (m.type === "update" && g) {
-    for (const key of ["name", "folder", "starred", "locked", "collapsed"])
-      if (
-        key in m.patch &&
-        typeof m.patch[key] ===
-          (["name", "folder"].includes(key) ? "string" : "boolean")
-      )
-        g[key] = m.patch[key];
-    if (g.folder && Object.hasOwn(folderIcons, m.patch.folderIcon)) {
+    for (const key of ["name", "folder"] as const)
+      if (typeof m.patch[key] === "string") g[key] = m.patch[key];
+    for (const key of ["starred", "locked", "collapsed"] as const)
+      if (typeof m.patch[key] === "boolean") g[key] = m.patch[key];
+    if (
+      g.folder &&
+      m.patch.folderIcon !== undefined &&
+      Object.hasOwn(folderIcons, m.patch.folderIcon)
+    ) {
       for (const item of state.groups)
         if (item.folder === g.folder) item.folderIcon = m.patch.folderIcon;
     }
   } else if (m.type === "delete") {
-    const removed = [];
+    const removed: TabGroup[] = [];
     for (const item of state.groups) {
       if (item.locked || (m.groupId && item.id !== m.groupId)) continue;
       const tabs = item.tabs.filter((t) => !m.ids || m.ids.includes(t.id));
@@ -187,7 +207,7 @@ export async function dispatch(m, sender = {}) {
   } else if (m.type === "move") {
     const target = state.groups.find((g) => g.id === m.targetId);
     if (target?.locked) throw new Error("Unlock the destination group first.");
-    const moved = [];
+    const moved: SavedTab[] = [];
     for (const item of state.groups) {
       if (item.locked || item.id === target?.id) continue;
       const selected = item.tabs.filter((t) => m.ids.includes(t.id));
@@ -221,16 +241,22 @@ export async function dispatch(m, sender = {}) {
   await write(state);
   return state;
 }
-chrome.runtime.onMessage.addListener((message, sender, reply) => {
+chrome.runtime.onMessage.addListener((message: Message, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;
   serial(() => dispatch(message, sender)).then(
     (result) => reply({ ok: true, result }),
-    (error) => reply({ ok: false, error: error.message }),
+    (error: unknown) =>
+      reply({
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      }),
   );
   return true;
 });
-async function report(error) {
-  await chrome.storage.local.set({ lastError: error.message });
+async function report(error: unknown) {
+  await chrome.storage.local.set({
+    lastError: error instanceof Error ? error.message : String(error),
+  });
   await chrome.action.setBadgeText({ text: "!" });
   await chrome.action.setBadgeBackgroundColor({ color: "#b53d3d" });
 }
@@ -241,6 +267,8 @@ chrome.commands.onCommand.addListener((command, tab) => {
   serial(async () => {
     const windowId =
       tab?.windowId ?? (await chrome.windows.getLastFocused()).id;
+    if (windowId === undefined)
+      throw new Error("No destination window is available.");
     return command === "show-manager"
       ? show(windowId)
       : capture("current", windowId, tab?.id);
@@ -268,9 +296,14 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  serial(() =>
-    info.menuItemId === "show"
-      ? show(tab.windowId)
-      : capture(info.menuItemId, tab.windowId, tab.id),
-  ).catch(report);
+  if (!tab) return;
+  serial(async () => {
+    if (info.menuItemId === "show") return show(tab.windowId);
+    if (
+      info.menuItemId === "left" ||
+      info.menuItemId === "current" ||
+      info.menuItemId === "right"
+    )
+      return capture(info.menuItemId, tab.windowId, tab.id);
+  }).catch(report);
 });

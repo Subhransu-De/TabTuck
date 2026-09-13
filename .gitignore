@@ -1,11 +1,18 @@
+# Installed dependencies and generated extension packages
 node_modules/
-dist/
+/dist/
+
+# Local credentials; example configuration remains trackable
 .env
 .env.*
 !.env.example
-*.log
-.playwright-cli/
-playwright-report/
-test-results/
-*backup*.json
-*export*.txt
+
+# Local tool output
+/*.log
+/.playwright-cli/
+/playwright-report/
+/test-results/
+
+# Accidental root-level data exports; fixtures under tests remain trackable
+/*backup*.json
+/*export*.txt

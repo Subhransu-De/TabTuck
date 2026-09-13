@@ -1,6 +1,39 @@
+interface Issue {
+  file?: string;
+  code: string;
+  message?: string;
+}
+function isIssue(value: unknown): value is Issue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    typeof value.code === "string" &&
+    (!("file" in value) || typeof value.file === "string") &&
+    (!("message" in value) || typeof value.message === "string")
+  );
+}
+export function parseReport(output: string): {
+  errors: Issue[];
+  warnings: Issue[];
+} {
+  const report: unknown = JSON.parse(output);
+  if (
+    typeof report !== "object" ||
+    report === null ||
+    !("errors" in report) ||
+    !Array.isArray(report.errors) ||
+    !report.errors.every(isIssue) ||
+    !("warnings" in report) ||
+    !Array.isArray(report.warnings) ||
+    !report.warnings.every(isIssue)
+  )
+    throw new Error("Invalid web-ext report");
+  return { errors: report.errors, warnings: report.warnings };
+}
 // web-ext validates Firefox packages. These four diagnostics are specific to
 // Firefox and do not apply to this Chromium/Helium Manifest V3 package.
-export function isFirefoxOnly(issue) {
+export function isFirefoxOnly(issue: Issue) {
   if (issue.file !== "manifest.json") return false;
   if (
     [
@@ -31,9 +64,7 @@ if (import.meta.main) {
   );
   const output = await new Response(child.stdout).text();
   const status = await child.exited;
-  const report = JSON.parse(output);
-  if (!Array.isArray(report.errors) || !Array.isArray(report.warnings))
-    throw new Error("Invalid web-ext report");
+  const report = parseReport(output);
   const issues = [...report.errors, ...report.warnings];
   const failures = issues.filter((issue) => !isFirefoxOnly(issue));
   if (failures.length || (status !== 0 && !report.errors.length)) {

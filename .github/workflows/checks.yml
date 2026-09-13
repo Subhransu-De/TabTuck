@@ -41,15 +41,13 @@ jobs:
         with:
           bun-version: "1.4.0"
       - run: bun install --frozen-lockfile
-      - run: bun run check
+      - run: make check
       # web-ext currently depends on image-size 2.0.2, which has unpatched
       # parser DoS advisories. Report development-tool advisories without
       # treating them as production dependencies or hiding their output.
       - name: Dependency advisory report
         continue-on-error: true
         run: bun run audit:dependencies
-      - name: Verify generated CSS is committed
-        run: git diff --exit-code -- manage.css
       - name: Install test browser
         run: bunx playwright install --with-deps chromium
       - name: Browser workflow and restore checks
