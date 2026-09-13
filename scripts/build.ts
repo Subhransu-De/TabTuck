@@ -8,13 +8,7 @@ await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 for (const file of [
   "manifest.json",
-  "background.js",
-  "model.js",
-  "ui-icons.js",
-  "ui-components.js",
-  "manage.html",
-  "manage.js",
-  "manage.css",
+  "manager/manage.html",
   "icons/16.png",
   "icons/32.png",
   "icons/48.png",
@@ -22,5 +16,18 @@ for (const file of [
   "icons/site.svg",
 ]) {
   await mkdir(path.dirname(path.join(output, file)), { recursive: true });
-  await cp(path.join(root, file), path.join(output, file));
+  await cp(path.join(root, "src", file), path.join(output, file));
 }
+
+const result = await Bun.build({
+  entrypoints: ["background/background.ts", "manager/manage.ts"].map((file) =>
+    path.join(root, "src", file),
+  ),
+  root: path.join(root, "src"),
+  outdir: output,
+  target: "browser",
+  format: "esm",
+  naming: "[dir]/[name].[ext]",
+});
+if (!result.success)
+  throw new AggregateError(result.logs, "Extension compilation failed");

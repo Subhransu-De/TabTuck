@@ -1,4 +1,4 @@
-export const folderIcons = {
+export const folderIcons: Record<string, readonly [string, string]> = {
   folder: ["Folder", "M3 7h7l2-3h9v16H3z"],
   work: ["Work", "M3 7h18v13H3zM8 7V4h8v3M3 12h18M10 12v3h4v-3"],
   book: [
@@ -19,21 +19,3 @@ export const folderIcons = {
   idea: ["Idea", "M9 18h6M9 21h6M9 15c0-3-4-3-4-7a7 7 0 0 1 14 0c0 4-4 4-4 7z"],
   home: ["Home", "m2 11 10-9 10 9M5 9v12h14V9M9 21v-8h6v8"],
 };
-const navigationIcons = {
-  star: ["Starred", "m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z"],
-  tabs: ["All tabs", "M3 3h14v4M3 3v14h4M7 7h14v14H7zM7 11h14"],
-  plus: ["New folder", "M12 5v14M5 12h14"],
-};
-export function icon(name) {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("aria-hidden", "true");
-  svg.classList.add("nav-icon");
-  const path = document.createElementNS(svg.namespaceURI, "path");
-  path.setAttribute(
-    "d",
-    (folderIcons[name] || navigationIcons[name] || folderIcons.folder)[1],
-  );
-  svg.append(path);
-  return svg;
-}

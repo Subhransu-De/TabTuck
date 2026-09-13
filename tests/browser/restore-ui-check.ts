@@ -1,12 +1,25 @@
+import type { Message, MessageResult, Reply } from "../../src/shared/types.ts";
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import path from "node:path";
+declare global {
+  interface Window {
+    restoreRequests: {
+      message: Extract<Message, { type: "restore" }>;
+      resolve: (reply: Reply<Extract<Message, { type: "restore" }>>) => void;
+      reject: (error: Error) => void;
+      succeed: () => Promise<void>;
+    }[];
+  }
+}
 const dir = process.env.TABTUCK_TEST_DIR;
 if (!dir || !process.env.HELIUM_EXECUTABLE)
   throw new Error(
     "Set TABTUCK_TEST_DIR and HELIUM_EXECUTABLE for an isolated test profile.",
   );
-const extension = process.env.TABTUCK_EXTENSION || import.meta.dirname;
+const extension =
+  process.env.TABTUCK_EXTENSION ||
+  path.resolve(import.meta.dirname, "../../dist/TabTuck");
 const baseline = process.env.TABTUCK_BASELINE === "1";
 const context = await chromium.launchPersistentContext(
   path.join(dir, "profile"),
@@ -25,14 +38,14 @@ try {
     (await context.waitForEvent("serviceworker"));
   const page = await context.newPage();
   await page.goto(
-    `chrome-extension://${new URL(worker.url()).host}/manage.html`,
+    `chrome-extension://${new URL(worker.url()).host}/manager/manage.html`,
   );
   await page.waitForFunction(() =>
-    document.querySelector("#summary").textContent.includes("saved"),
+    document.querySelector("#summary")?.textContent?.includes("saved"),
   );
-  const call = (message) =>
+  const call = <M extends Message>(message: M): Promise<MessageResult<M>> =>
     page.evaluate(async (message) => {
-      const response = await chrome.runtime.sendMessage(message);
+      const response: Reply<M> = await chrome.runtime.sendMessage(message);
       if (!response.ok) throw new Error(response.error);
       return response.result;
     }, message);
@@ -47,20 +60,24 @@ try {
   await page.evaluate(() => {
     const native = chrome.runtime.sendMessage.bind(chrome.runtime);
     window.restoreRequests = [];
-    chrome.runtime.sendMessage = (message) => {
+    const sendMessage = (message: Message) => {
       if (message.type !== "restore") return native(message);
-      return new Promise((resolve, reject) =>
-        window.restoreRequests.push({
-          message,
-          resolve,
-          reject,
-          succeed: async () => resolve(await native(message)),
-        }),
+      return new Promise<Reply<Extract<Message, { type: "restore" }>>>(
+        (resolve, reject) =>
+          window.restoreRequests.push({
+            message,
+            resolve,
+            reject,
+            succeed: async () => resolve(await native(message)),
+          }),
       );
     };
+    // Intercept only the one-argument Promise overload used by the manager.
+    chrome.runtime.sendMessage =
+      sendMessage as typeof chrome.runtime.sendMessage;
   });
   const evidence = await page.evaluate(() => {
-    const link = document.querySelector(".tab-row a");
+    const link = document.querySelector<HTMLAnchorElement>(".tab-row a")!;
     const start = performance.now();
     link.click();
     const removed = !link.isConnected;
@@ -84,7 +101,7 @@ try {
     assert.equal(evidence.requests, 1);
     // A physical double-click must not restore the newly shifted row.
     await page.evaluate(() =>
-      document.querySelector(".tab-row a").dispatchEvent(
+      document.querySelector<HTMLAnchorElement>(".tab-row a")!.dispatchEvent(
         new MouseEvent("click", {
           bubbles: true,
           cancelable: true,
@@ -126,7 +143,7 @@ try {
     assert.equal(
       restored[0].windowId,
       await page.evaluate(
-        async () => (await chrome.tabs.getCurrent()).windowId,
+        async () => (await chrome.tabs.getCurrent())!.windowId,
       ),
     );
     await page.locator(".tab-row a").first().click();
@@ -147,7 +164,7 @@ try {
       patch: { locked: true },
     });
     await page.evaluate(() => {
-      const link = document.querySelector(".tab-row a");
+      const link = document.querySelector<HTMLAnchorElement>(".tab-row a")!;
       link.click();
       link.click();
     });

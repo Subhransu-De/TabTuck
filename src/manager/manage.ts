@@ -1,51 +1,83 @@
-import { defaults, exportText, groupBySites } from "./model.js";
-import { icon, folderIcons } from "./ui-icons.js";
+import { $ } from "./dom.ts";
+import type {
+  State,
+  Settings,
+  Message,
+  MessageResult,
+  Reply,
+  RestoreOptions,
+  Selection,
+} from "../shared/types.ts";
+import { defaults, exportText, groupBySites } from "../shared/model.ts";
+import { icon, folderIcons } from "./ui-icons.ts";
 import {
   element as node,
   actionButton,
   websiteIcon,
   addedTime,
-} from "./ui-components.js";
-const $ = (s) => document.querySelector(s);
-let state,
-  filter = "all",
-  selected = new Set(),
-  dragged,
+} from "./ui-components.ts";
+let state: State;
+let filter = "all",
+  selected = new Set<string>(),
+  dragged: { groupId: string; tabId?: string } | null = null,
   busy = false,
-  toastTimer;
-const collapsedSites = new Set();
-const restoring = new Set();
-const hiddenRestores = new Set();
-function button(label, fn, cls) {
+  toastTimer: ReturnType<typeof setTimeout> | undefined;
+const collapsedSites = new Set<string>();
+const restoring = new Set<string>();
+const hiddenRestores = new Set<string>();
+function button(
+  label: string,
+  fn: () => unknown | Promise<unknown>,
+  cls?: string,
+) {
   return actionButton(label, () => run(fn), cls);
 }
-function toast(message) {
+function toast(message: string) {
   $("#status").textContent = message;
   $("#status").hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => ($("#status").hidden = true), 6500);
 }
-async function api(message) {
-  const response = await chrome.runtime.sendMessage(message);
+async function api<M extends Message>(message: M): Promise<MessageResult<M>> {
+  const response: Reply<M> = await chrome.runtime.sendMessage(message);
   if (!response?.ok)
     throw new Error(
       response?.error || "The extension did not respond. Reload this page.",
     );
   return response.result;
 }
-async function run(fn) {
+async function run(fn: () => unknown | Promise<unknown>) {
   if (busy) return;
   busy = true;
   try {
     await fn();
     await refresh();
   } catch (e) {
-    toast(e.message);
+    toast(e instanceof Error ? e.message : String(e));
   } finally {
     busy = false;
   }
 }
-function ask(title, { value, description = "", options, folderIcon } = {}) {
+interface PromptOptions {
+  value?: string;
+  description?: string;
+  options?: string[][];
+  folderIcon?: string;
+}
+type PromptResult = string | boolean | { name: string; icon: string } | null;
+function ask(
+  title: string,
+  options: PromptOptions & { folderIcon: string },
+): Promise<{ name: string; icon: string } | null>;
+function ask(
+  title: string,
+  options: PromptOptions & ({ value: string } | { options: string[][] }),
+): Promise<string | null>;
+function ask(title: string, options?: PromptOptions): Promise<boolean | null>;
+function ask(
+  title: string,
+  { value, description = "", options, folderIcon }: PromptOptions = {},
+): Promise<PromptResult> {
   $("#prompt-title").textContent = title;
   $("#prompt-description").textContent = description;
   $("#prompt-input").hidden = value === undefined;
@@ -75,15 +107,18 @@ function ask(title, { value, description = "", options, folderIcon } = {}) {
   }
   $("#prompt").showModal();
   if (value !== undefined) $("#prompt-input").focus();
-  return new Promise((resolve) => {
-    let result = null;
+  return new Promise<PromptResult>((resolve) => {
+    let result: PromptResult = null;
     $("#prompt-form").onsubmit = (e) => {
       e.preventDefault();
       result =
         folderIcon !== undefined
           ? {
               name: $("#prompt-input").value,
-              icon: $("#folder-icons input:checked")?.value || "folder",
+              icon:
+                document.querySelector<HTMLInputElement>(
+                  "#folder-icons input:checked",
+                )?.value || "folder",
             }
           : options
             ? $("#prompt-select").value
@@ -207,7 +242,7 @@ function render() {
   if (!groups.length) {
     const empty = node("div", undefined, "empty");
     const img = node("img");
-    img.src = "icons/128.png";
+    img.src = "../icons/128.png";
     img.alt = "";
     empty.append(
       img,
@@ -257,7 +292,8 @@ function render() {
           toast("Site links copied.");
         }),
         button(g.collapsed ? "Expand" : "Collapse", async () => {
-          g.collapsed ? collapsedSites.delete(g.id) : collapsedSites.add(g.id);
+          if (g.collapsed) collapsedSites.delete(g.id);
+          else collapsedSites.add(g.id);
         }),
       );
     else
@@ -319,7 +355,8 @@ function render() {
         check.checked = selected.has(t.id);
         check.setAttribute("aria-label", `Select ${t.title}`);
         check.onchange = () => {
-          check.checked ? selected.add(t.id) : selected.delete(t.id);
+          if (check.checked) selected.add(t.id);
+          else selected.delete(t.id);
           $("#selection").hidden = !selected.size;
           $("#selected-count").textContent = `${selected.size} selected`;
         };
@@ -335,15 +372,17 @@ function render() {
         link.onclick = (e) => {
           e.preventDefault();
           if (e.detail > 1) return;
-          restore({ ids: [t.id], keep: e.ctrlKey || e.metaKey }).catch((e) =>
-            toast(e.message),
+          restore({ ids: [t.id], keep: e.ctrlKey || e.metaKey }).catch(
+            (e: unknown) => toast(e instanceof Error ? e.message : String(e)),
           );
         };
         link.onauxclick = (e) => {
           if (e.button === 1) {
             e.preventDefault();
             if (e.detail > 1) return;
-            restore({ ids: [t.id], keep: true }).catch((e) => toast(e.message));
+            restore({ ids: [t.id], keep: true }).catch((e: unknown) =>
+              toast(e instanceof Error ? e.message : String(e)),
+            );
           }
         };
         row.append(
@@ -354,7 +393,7 @@ function render() {
           addedTime(t.addedAt ?? g.createdAt),
           button("×", () => remove({ ids: [t.id] })),
         );
-        row.lastChild.setAttribute("aria-label", `Delete ${t.title}`);
+        row.lastElementChild!.setAttribute("aria-label", `Delete ${t.title}`);
         row.addEventListener("dragstart", (e) =>
           startDrag(e, { groupId: g.id, tabId: t.id }),
         );
@@ -364,7 +403,9 @@ function render() {
           e.stopPropagation();
           const after =
             e.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2;
-          const beforeId = after ? row.nextElementSibling?.dataset.tab : t.id;
+          const beforeId = after
+            ? (row.nextElementSibling as HTMLElement | null)?.dataset.tab
+            : t.id;
           run(() => drop(g.id, beforeId));
         });
         section.append(row);
@@ -372,7 +413,7 @@ function render() {
     section.addEventListener("dragover", (e) => {
       if (g.site || g.locked || !dragged) return;
       e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
+      e.dataTransfer!.dropEffect = "move";
       highlightDropTarget(section);
     });
     section.addEventListener("drop", (e) => {
@@ -384,20 +425,20 @@ function render() {
     container.append(section);
   }
 }
-function startDrag(e, data) {
-  if (!e.currentTarget.draggable) {
+function startDrag(e: DragEvent, data: { groupId: string; tabId?: string }) {
+  if (!(e.currentTarget as HTMLElement).draggable) {
     e.preventDefault();
     return;
   }
   dragged = data;
-  e.dataTransfer.setData("text/plain", data.tabId || data.groupId);
-  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer!.setData("text/plain", data.tabId || data.groupId);
+  e.dataTransfer!.effectAllowed = "move";
   document.body.classList.add("dragging");
-  highlightDropTarget(e.currentTarget.closest(".group"));
+  highlightDropTarget((e.currentTarget as HTMLElement).closest(".group"));
 }
-let dropTarget = null;
-let insertionRow = null;
-function setInsertion(row, after = false) {
+let dropTarget: HTMLElement | null = null;
+let insertionRow: HTMLElement | null = null;
+function setInsertion(row: HTMLElement | null, after = false) {
   if (insertionRow !== row) {
     insertionRow?.classList.remove("insert-before", "insert-after");
     insertionRow = row;
@@ -407,7 +448,7 @@ function setInsertion(row, after = false) {
     row.classList.toggle("insert-after", after);
   }
 }
-function highlightDropTarget(target) {
+function highlightDropTarget(target: HTMLElement | null) {
   if (target === dropTarget) return;
   dropTarget?.classList.remove("drag-over");
   dropTarget = target;
@@ -420,14 +461,15 @@ function finishDrag() {
   document.body.classList.remove("dragging");
 }
 // Track the card, not its changing child elements, throughout a native drag.
-for (const event of ["dragenter", "dragover"])
+for (const event of ["dragenter", "dragover"] as const)
   document.addEventListener(
     event,
     (e) => {
       if (!dragged) return;
-      const card = e.target.closest?.(".group");
+      const target = e.target instanceof Element ? e.target : null;
+      const card = target?.closest<HTMLElement>(".group");
       highlightDropTarget(card?.dataset.droppable === "true" ? card : null);
-      const row = e.target.closest?.(".tab-row");
+      const row = target?.closest<HTMLElement>(".tab-row");
       if (row && dropTarget)
         setInsertion(
           row,
@@ -447,7 +489,7 @@ document.addEventListener("dragleave", (e) => {
   )
     highlightDropTarget(null);
 });
-async function drop(targetId, beforeId) {
+async function drop(targetId?: string, beforeId?: string) {
   if (!dragged) return;
   const d = dragged;
   finishDrag();
@@ -467,7 +509,7 @@ $("#drop-zone").ondrop = (e) => {
   e.preventDefault();
   if (dragged?.tabId) run(() => drop(undefined));
 };
-async function restore(options) {
+async function restore(options: RestoreOptions) {
   const requested = options.ids ? new Set(options.ids) : null;
   const ids = [];
   for (const group of state.groups) {
@@ -498,7 +540,7 @@ async function restore(options) {
     render();
   }
 }
-async function remove(options) {
+async function remove(options: Selection) {
   if (
     await ask("Delete saved tabs?", {
       description:
@@ -575,7 +617,7 @@ $("#new-folder").onclick = () =>
   });
 $("#transfer-open").onclick = () => $("#transfer").showModal();
 $("#import-file").onchange = async (e) => {
-  const file = e.target.files[0];
+  const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     if (file.size > 50 * 1024 * 1024) {
       toast("Choose a file smaller than 50 MB.");
@@ -592,7 +634,7 @@ $("#import").onclick = () =>
     $("#import-text").value = "";
     $("#import-file").value = "";
   });
-function download(content, name, type) {
+function download(content: string, name: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = node("a");
   a.href = url;
@@ -615,9 +657,13 @@ $("#export-text").onclick = () =>
     download(exportText(fresh.groups), "tabtuck-export.txt", "text/plain");
   });
 async function settings() {
-  for (const el of document.querySelectorAll("[data-setting]")) {
-    if (el.type === "checkbox") el.checked = state.settings[el.dataset.setting];
-    else el.value = state.settings[el.dataset.setting];
+  for (const el of document.querySelectorAll<
+    HTMLInputElement | HTMLSelectElement
+  >("[data-setting]")) {
+    const value = state.settings[el.dataset.setting as keyof Settings];
+    if (el instanceof HTMLInputElement && el.type === "checkbox")
+      el.checked = value === true;
+    else el.value = String(value);
   }
   const commands = await chrome.commands.getAll();
   $("#command-status").textContent = commands
@@ -631,10 +677,20 @@ async function settings() {
 $("#settings-open").onclick = () => run(settings);
 $("#settings-save").onclick = () =>
   run(async () => {
-    const settings = {};
-    for (const el of document.querySelectorAll("[data-setting]"))
-      settings[el.dataset.setting] =
-        el.type === "checkbox" ? el.checked : el.value;
+    const settings: Partial<Settings> = {};
+    for (const el of document.querySelectorAll<
+      HTMLInputElement | HTMLSelectElement
+    >("[data-setting]")) {
+      const key = el.dataset.setting;
+      if (key === "theme") settings.theme = el.value;
+      else if (
+        (key === "keepRestored" ||
+          key === "deduplicate" ||
+          key === "showAfterSave") &&
+        el instanceof HTMLInputElement
+      )
+        settings[key] = el.checked;
+    }
     await api({ type: "settings", settings });
     $("#settings").close();
     toast("Options saved.");
@@ -643,14 +699,16 @@ $("#shortcuts").onclick = () =>
   run(async () => {
     const tab = await chrome.tabs.getCurrent();
     await chrome.tabs.create({
-      windowId: tab.windowId,
+      windowId: tab?.windowId,
       url: "chrome://extensions/shortcuts",
     });
   });
 document.addEventListener("keydown", (e) => {
   if (
     e.key === "/" &&
-    !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName) &&
+    !["INPUT", "TEXTAREA", "SELECT"].includes(
+      document.activeElement?.tagName ?? "",
+    ) &&
     !document.querySelector("dialog[open]")
   ) {
     e.preventDefault();
@@ -659,7 +717,7 @@ document.addEventListener("keydown", (e) => {
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.state?.newValue) {
-    state = changes.state.newValue;
+    state = changes.state.newValue as State;
     state.settings = { ...defaults, ...state.settings };
     const ids = new Set(state.groups.flatMap((g) => g.tabs.map((t) => t.id)));
     selected = new Set([...selected].filter((id) => ids.has(id)));
@@ -672,7 +730,9 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener(
 );
 await refresh();
 $("#new-folder").replaceChildren(icon("plus"), node("span", "New folder"));
-const { lastError } = await chrome.storage.local.get("lastError");
+const { lastError } = await chrome.storage.local.get<{ lastError?: string }>(
+  "lastError",
+);
 if (lastError) {
   toast(lastError);
   await chrome.storage.local.remove("lastError");

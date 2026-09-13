@@ -1,6 +1,6 @@
 export default {
   extends: ["stylelint-config-recommended"],
-  ignoreFiles: ["manage.css", "dist/**", "node_modules/**"],
+  ignoreFiles: ["dist/**", "node_modules/**"],
   rules: {
     "at-rule-no-unknown": [
       true,

@@ -1,8 +1,8 @@
 @import "tailwindcss" source(none);
-@source "../manage.html";
-@source "../manage.js";
-@source "../ui-components.js";
-@source "../ui-icons.js";
+@source "./manage.html";
+@source "./manage.ts";
+@source "./ui-components.ts";
+@source "./ui-icons.ts";
 
 @theme inline {
   --color-canvas: var(--canvas);
