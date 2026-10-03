@@ -345,3 +345,34 @@ test("a tab already loading when saved is still closed", async () => {
   await capture("current", 7, 1);
   expect(removed).toEqual([1]);
 });
+test("save closes a tab that finished loading meanwhile, not one that navigated away", async () => {
+  const get = chrome.tabs.get;
+  const now = (change: Partial<chrome.tabs.Tab>) =>
+    (chrome.tabs.get = (async (id: number) => ({
+      ...tabs.find((t) => t.id === id)!,
+      ...change,
+    })) as typeof chrome.tabs.get);
+  try {
+    tabs[0] = { ...tabs[0], url: "", pendingUrl: "https://example.com/a" };
+    now({ url: "https://example.com/a", pendingUrl: undefined });
+    await capture("current", 7, 1);
+    expect(removed).toEqual([1]);
+    // The first save closed tab 1; open a fresh one for the second case.
+    tabs = [
+      {
+        id: 5,
+        windowId: 7,
+        index: 0,
+        active: true,
+        url: "https://example.com/a",
+        title: "A",
+      },
+    ];
+    now({ pendingUrl: "https://example.com/elsewhere" });
+    const result = await capture("current", 7, 1);
+    expect(removed).toEqual([1]);
+    expect(result.notClosed).toBe(1);
+  } finally {
+    chrome.tabs.get = get;
+  }
+});

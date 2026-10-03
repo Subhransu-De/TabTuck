@@ -1323,18 +1323,24 @@ $("#move-selected").onclick = () =>
       ],
     });
     if (targetId !== null) {
+      const homeOf = (groups: TabGroup[]) =>
+        new Map(
+          groups.flatMap((g) => g.tabs.map((t) => [t.id, g.id] as const)),
+        );
+      const before = homeOf(state.groups);
       const next = await api({
         type: "move",
         ids: movable,
         targetId: targetId || undefined,
       });
-      // Count what reached the destination; a collection locked elsewhere
-      // while the dialog was open keeps its tabs, and they stay selected.
-      const target = targetId
-        ? next.groups.find((g) => g.id === targetId)
-        : next.groups[0];
-      const landed = new Set(target?.tabs.map((t) => t.id));
-      const moved = movable.filter((id) => landed.has(id));
+      // Count what actually moved: a collection locked elsewhere while the
+      // dialog was open keeps its tabs, and they stay selected.
+      const after = homeOf(next.groups);
+      const moved = movable.filter((id) =>
+        targetId
+          ? after.get(id) === targetId
+          : after.has(id) && after.get(id) !== before.get(id),
+      );
       for (const id of moved) selected.delete(id);
       const kept = selected.size;
       toast(
@@ -1478,8 +1484,15 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener(
   "change",
   () => state && render(),
 );
-// Relative save times ("4m", "2h") stay current while the page is open.
+// Relative save times ("4m", "2h") stay current while the page is open, and
+// Recent regroups into Today and Yesterday when the date changes.
+let today = new Date().toDateString();
 setInterval(() => {
+  if (new Date().toDateString() !== today) {
+    today = new Date().toDateString();
+    if (!busy && !dragged) render();
+    return;
+  }
   for (const time of document.querySelectorAll<HTMLTimeElement>(
     "time.tab-date",
   ))
