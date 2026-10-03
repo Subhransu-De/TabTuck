@@ -324,3 +324,24 @@ test("left and right capture respect position, pinned tabs, and browser groups",
   expect(removed).toEqual([1, 5]);
   expect(tabs.some((t) => t.id === 3)).toBe(true);
 });
+test("restore and move follow the order the tabs were given in", async () => {
+  const tab = (id: string) => ({
+    id,
+    title: id,
+    url: `https://example.com/${id}`,
+  });
+  stored.groups = [group([tab("1"), tab("2")]), group([tab("3")])];
+  stored.settings.keepRestored = true;
+  await restore({ ids: ["3", "1"] }, 7);
+  expect(created.map((t) => t.url)).toEqual([
+    "https://example.com/3",
+    "https://example.com/1",
+  ]);
+  await dispatch({ type: "move", ids: ["3", "2"] });
+  expect(stored.groups[0].tabs.map((t) => t.id)).toEqual(["3", "2"]);
+});
+test("a tab already loading when saved is still closed", async () => {
+  tabs[0] = { ...tabs[0], pendingUrl: "https://example.com/next" };
+  await capture("current", 7, 1);
+  expect(removed).toEqual([1]);
+});

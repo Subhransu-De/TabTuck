@@ -1165,7 +1165,7 @@ $("#drop-zone").ondrop = (e) => {
 
 async function restore(options: RestoreOptions) {
   const requested = options.ids ? new Set(options.ids) : null;
-  const ids = [];
+  const ids: string[] = [];
   for (const group of state.groups) {
     if (options.groupId && options.groupId !== group.id) continue;
     for (const tab of group.tabs) {
@@ -1178,6 +1178,10 @@ async function restore(options: RestoreOptions) {
     }
   }
   if (!ids.length) return;
+  if (options.ids) {
+    const rank = new Map(options.ids.map((id, i) => [id, i]));
+    ids.sort((a, b) => rank.get(a)! - rank.get(b)!);
+  }
   // Update the DOM in this click event, before any browser or storage work.
   render();
   try {
@@ -1273,7 +1277,7 @@ $("#theme-toggle").onclick = () =>
 $("#restore-all").onclick = () =>
   run(() => restore({ ids: visible().map((e) => e.tab.id) }));
 $("#restore-selected").onclick = () =>
-  run(() => restore({ ids: [...selected] }));
+  run(() => restore({ ids: orderedSelection() }));
 $("#delete-selected").onclick = () => run(() => remove([...selected]));
 // Selected tabs in on-screen order, then any hidden by the current view in
 // saved order, so copied links never depend on the order of clicks.
@@ -1297,9 +1301,12 @@ $("#move-selected").onclick = () =>
   run(async () => {
     // Locked collections keep their tabs, as with delete; say so instead of
     // silently clearing them from the selection.
-    const movable = live(state.groups)
-      .filter(({ tab, group }) => selected.has(tab.id) && !group.locked)
-      .map(({ tab }) => tab.id);
+    const locked = new Set(
+      live(state.groups)
+        .filter(({ group }) => group.locked)
+        .map(({ tab }) => tab.id),
+    );
+    const movable = orderedSelection().filter((id) => !locked.has(id));
     if (!movable.length) {
       toast("Unlock the selected collections to move their tabs.");
       return;
@@ -1316,15 +1323,22 @@ $("#move-selected").onclick = () =>
       ],
     });
     if (targetId !== null) {
-      await api({
+      const next = await api({
         type: "move",
         ids: movable,
         targetId: targetId || undefined,
       });
-      for (const id of movable) selected.delete(id);
+      // Count what reached the destination; a collection locked elsewhere
+      // while the dialog was open keeps its tabs, and they stay selected.
+      const target = targetId
+        ? next.groups.find((g) => g.id === targetId)
+        : next.groups[0];
+      const landed = new Set(target?.tabs.map((t) => t.id));
+      const moved = movable.filter((id) => landed.has(id));
+      for (const id of moved) selected.delete(id);
       const kept = selected.size;
       toast(
-        `Moved ${plural(movable.length, "tab")}.${kept ? ` Kept ${plural(kept, "tab")} in locked collections.` : ""}`,
+        `Moved ${plural(moved.length, "tab")}.${kept ? ` Kept ${plural(kept, "tab")} in locked collections.` : ""}`,
       );
     }
   });

@@ -274,7 +274,9 @@ export async function capture(
         if (
           !latest.pinned &&
           (latest.groupId === undefined || latest.groupId === -1) &&
-          (latest.pendingUrl || latest.url) === (tab.url || tab.pendingUrl)
+          // Both fields unchanged: no navigation started after the tab was read.
+          (latest.url ?? "") === (tab.url ?? "") &&
+          (latest.pendingUrl ?? "") === (tab.pendingUrl ?? "")
         )
           await chrome.tabs.remove(tab.id!);
         else return false;
@@ -292,24 +294,32 @@ export async function restore(message: RestoreOptions, windowId: number) {
   let count = 0;
   const failed = [];
   const wanted = message.ids && new Set(message.ids);
-  for (const g of state.groups) {
-    if (message.groupId && message.groupId !== g.id) continue;
-    for (const tab of [...g.tabs]) {
-      if (wanted && !wanted.has(tab.id)) continue;
-      try {
-        if (!safeUrl(tab.url)) throw new Error("Unsupported URL");
-        await chrome.tabs.create({ windowId, url: tab.url, active: false });
-      } catch {
-        failed.push(tab.title);
-        continue;
-      }
-      count++;
-      if (!g.locked && !state.settings.keepRestored && !message.keep) {
-        g.tabs = g.tabs.filter((t) => t.id !== tab.id);
-        if (!g.tabs.length)
-          state.groups = state.groups.filter((g) => g.tabs.length);
-        await write(state); // Checkpoint each successful restore; failed items stay saved.
-      }
+  const pairs = state.groups
+    .filter((g) => !message.groupId || message.groupId === g.id)
+    .flatMap((g) =>
+      g.tabs
+        .filter((t) => !wanted || wanted.has(t.id))
+        .map((tab) => [g, tab] as const),
+    );
+  // Open tabs in the order they were asked for, which is the order on screen.
+  if (message.ids) {
+    const rank = new Map(message.ids.map((id, i) => [id, i]));
+    pairs.sort(([, a], [, b]) => rank.get(a.id)! - rank.get(b.id)!);
+  }
+  for (const [g, tab] of pairs) {
+    try {
+      if (!safeUrl(tab.url)) throw new Error("Unsupported URL");
+      await chrome.tabs.create({ windowId, url: tab.url, active: false });
+    } catch {
+      failed.push(tab.title);
+      continue;
+    }
+    count++;
+    if (!g.locked && !state.settings.keepRestored && !message.keep) {
+      g.tabs = g.tabs.filter((t) => t.id !== tab.id);
+      if (!g.tabs.length)
+        state.groups = state.groups.filter((g) => g.tabs.length);
+      await write(state); // Checkpoint each successful restore; failed items stay saved.
     }
   }
   const groups = state.groups.filter((g) => g.tabs.length);
@@ -403,6 +413,9 @@ export async function dispatch(
       moved.push(...selected);
       item.tabs = item.tabs.filter((t) => !wanted.has(t.id));
     }
+    // Keep the order the tabs were given in, which is the order on screen.
+    const rank = new Map(m.ids.map((id, i) => [id, i]));
+    moved.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
     if (moved.length) {
       if (target) {
         const index = target.tabs.findIndex((t) => t.id === anchor);
