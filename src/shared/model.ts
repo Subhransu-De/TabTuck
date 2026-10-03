@@ -3,9 +3,10 @@ export const defaults: Settings = {
   keepRestored: false,
   deduplicate: false,
   showAfterSave: true,
-  theme: "light",
+  theme: "system",
 };
 export const uid = () => crypto.randomUUID();
+export const capturePrefix = "capture:";
 export function groupBySites(groups: TabGroup[]): TabGroup[] {
   const sites = new Map<string, TabGroup>();
   for (const source of [...groups].sort((a, b) => b.createdAt - a.createdAt)) {

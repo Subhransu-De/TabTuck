@@ -153,6 +153,34 @@ test("manual link order supports up, down, self-drop and cross-group insertion",
   expect(order()).toEqual(["1", "3"]);
   expect(stored.groups[1].tabs.map((t) => t.id)).toEqual(["2", "4"]);
 });
+test("several selected links can be dropped elsewhere in their own group", async () => {
+  stored.groups = [
+    group(
+      ["a", "b", "c", "d", "e"].map((id) => ({
+        id,
+        title: id,
+        url: `https://example.com/${id}`,
+      })),
+    ),
+  ];
+  const groupId = stored.groups[0].id;
+  const order = () => stored.groups[0].tabs.map((t) => t.id);
+  await dispatch({
+    type: "move",
+    ids: ["a", "b"],
+    targetId: groupId,
+    beforeId: "e",
+  });
+  expect(order()).toEqual(["c", "d", "a", "b", "e"]);
+  // Dropping onto one of the moved rows keeps the selection together there.
+  await dispatch({
+    type: "move",
+    ids: ["c", "a"],
+    targetId: groupId,
+    beforeId: "a",
+  });
+  expect(order()).toEqual(["d", "c", "a", "b", "e"]);
+});
 test("storage failure never closes original tabs", async () => {
   failWrite = true;
   await expect(capture("all", 7)).rejects.toThrow("Disk full");
@@ -295,4 +323,64 @@ test("left and right capture respect position, pinned tabs, and browser groups",
   await capture("right", 7, 3);
   expect(removed).toEqual([1, 5]);
   expect(tabs.some((t) => t.id === 3)).toBe(true);
+});
+test("restore and move follow the order the tabs were given in", async () => {
+  const tab = (id: string) => ({
+    id,
+    title: id,
+    url: `https://example.com/${id}`,
+  });
+  stored.groups = [group([tab("1"), tab("2")]), group([tab("3")])];
+  stored.settings.keepRestored = true;
+  await restore({ ids: ["3", "1"] }, 7);
+  expect(created.map((t) => t.url)).toEqual([
+    "https://example.com/3",
+    "https://example.com/1",
+  ]);
+  await dispatch({ type: "move", ids: ["3", "2"] });
+  expect(stored.groups[0].tabs.map((t) => t.id)).toEqual(["3", "2"]);
+});
+test("a tab navigating elsewhere when saved stays open", async () => {
+  // Only the committed address is saved, so closing would lose the new page.
+  tabs[0] = { ...tabs[0], pendingUrl: "https://example.com/next" };
+  const result = await capture("current", 7, 1);
+  expect(removed).toEqual([]);
+  expect(result.notClosed).toBe(1);
+});
+test("save closes a tab that finished loading meanwhile, not one that navigated away", async () => {
+  const get = chrome.tabs.get;
+  const now = (change: Partial<chrome.tabs.Tab>) =>
+    (chrome.tabs.get = (async (id: number) => ({
+      ...tabs.find((t) => t.id === id)!,
+      ...change,
+    })) as typeof chrome.tabs.get);
+  try {
+    tabs[0] = { ...tabs[0], url: "", pendingUrl: "https://example.com/a" };
+    now({ url: "https://example.com/a", pendingUrl: undefined });
+    await capture("current", 7, 1);
+    expect(removed).toEqual([1]);
+    // The first save closed tab 1; open a fresh one for the second case.
+    tabs = [
+      {
+        id: 5,
+        windowId: 7,
+        index: 0,
+        active: true,
+        url: "https://example.com/a",
+        title: "A",
+      },
+    ];
+    now({ pendingUrl: "https://example.com/elsewhere" });
+    const result = await capture("current", 7, 1);
+    expect(removed).toEqual([1]);
+    expect(result.notClosed).toBe(1);
+    // Saved at A while heading to B; B finishing must not close the tab.
+    tabs = [{ ...tabs[0], pendingUrl: "https://example.com/b" }];
+    now({ url: "https://example.com/b", pendingUrl: undefined });
+    const unsaved = await capture("current", 7, 1);
+    expect(removed).toEqual([1]);
+    expect(unsaved.notClosed).toBe(1);
+  } finally {
+    chrome.tabs.get = get;
+  }
 });

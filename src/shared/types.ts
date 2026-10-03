@@ -25,9 +25,21 @@ export interface Settings {
 }
 export interface State {
   version: number;
+  revision?: string;
   groups: TabGroup[];
   settings: Settings;
   trash?: { groups: TabGroup[]; at: number }[];
+}
+export interface CaptureInfo {
+  base?: string;
+  order: number;
+  count: number;
+  settings: Settings;
+}
+export interface CaptureJournal {
+  base?: string;
+  order: number;
+  group: TabGroup;
 }
 export type CaptureMode =
   "current" | "selected" | "other" | "left" | "right" | "all";

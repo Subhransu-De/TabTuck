@@ -14,6 +14,10 @@ for (const file of [
   "icons/48.png",
   "icons/128.png",
   "icons/site.svg",
+  "fonts/schibsted-grotesk.woff2",
+  "fonts/hanken-grotesk.woff2",
+  "fonts/spline-sans-mono.woff2",
+  "fonts/OFL.txt",
 ]) {
   await mkdir(path.dirname(path.join(output, file)), { recursive: true });
   await cp(path.join(root, "src", file), path.join(output, file));

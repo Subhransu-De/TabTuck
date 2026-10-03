@@ -6,25 +6,71 @@ import type {
   MessageResult,
   Reply,
   RestoreOptions,
-  Selection,
+  TabGroup,
+  CaptureJournal,
 } from "../shared/types.ts";
-import { defaults, exportText, groupBySites } from "../shared/model.ts";
+import { defaults, exportText, capturePrefix } from "../shared/model.ts";
 import { icon, folderIcons } from "./ui-icons.ts";
+import { element as node, actionButton, websiteIcon } from "./ui-components.ts";
 import {
-  element as node,
-  actionButton,
-  websiteIcon,
-  addedTime,
-} from "./ui-components.ts";
+  type Bucket,
+  type Entry,
+  ago,
+  bucketNames,
+  bucketOf,
+  bulletList,
+  collectionLabel,
+  entries,
+  groupSites,
+  longDate,
+  newestFirst,
+  plural,
+  savedAt,
+  shortAgo,
+  siteLabel,
+  sites,
+} from "./library.ts";
+import { Vine, type VineLink } from "./vine.ts";
+import { WindowedList, reconcile } from "./windowed-list.ts";
+
 let state: State;
-let filter = "all",
+// Scope is the first column: "recent", "all", "starred", "folder:<name>" or
+// "group:<id>". Facet is the second column: a site host, a time bucket, or "all".
+let scope = "recent",
+  facet = "all",
   selected = new Set<string>(),
-  dragged: { groupId: string; tabId?: string } | null = null,
+  dragged: { groupId: string; ids: string[] } | null = null,
   busy = false,
+  showAllSites = false,
   toastTimer: ReturnType<typeof setTimeout> | undefined;
-const collapsedSites = new Set<string>();
+const collapsedFolders = new Set<string>();
 const restoring = new Set<string>();
 const hiddenRestores = new Set<string>();
+const vine = new Vine($("#app"), $("#vine"));
+// chrome.storage holds the theme setting; this page-local copy only lets the
+// last theme paint before that asynchronous read finishes.
+const THEME_KEY = "tabtuck-theme";
+const lastTheme = localStorage.getItem(THEME_KEY);
+if (lastTheme === "dark" || lastTheme === "light")
+  document.body.classList.add(lastTheme);
+const SITE_LIMIT = 14;
+let orderedGroups: TabGroup[] = [];
+let groupIndex = new Map<string, TabGroup>();
+const groupViews = new Map<string, TabGroup[]>();
+let liveViews = new Map<TabGroup[], Entry[]>();
+let scopedView: Entry[] | undefined;
+let visibleView: Entry[] | undefined;
+let recentView: Entry[] | undefined;
+const collectionRows = new WeakMap<TabGroup, HTMLElement>();
+type TabItem =
+  | { kind: "tab"; entry: Entry }
+  | { kind: "separator"; entry: Entry; count: number; recent: boolean };
+let tabItems: TabItem[] = [];
+let listScrollTop = 0;
+let tabHeight = 34;
+let separatorHeight = 33;
+const tabWindow = new WindowedList<TabItem>($("#groups"));
+
 function button(
   label: string,
   fn: () => unknown | Promise<unknown>,
@@ -32,8 +78,27 @@ function button(
 ) {
   return actionButton(label, () => run(fn), cls);
 }
-function toast(message: string) {
-  $("#status").textContent = message;
+// Secondary actions show only their icon; the label stays as the accessible
+// name and tooltip.
+function toolButton(
+  label: string,
+  symbol: string,
+  fn: () => unknown | Promise<unknown>,
+  cls = "",
+  iconOnly = false,
+) {
+  const el = button("", fn, `${cls}${iconOnly ? " icon-only" : ""}`.trim());
+  el.dataset.action = symbol;
+  if (iconOnly) {
+    el.append(icon(symbol));
+    el.setAttribute("aria-label", label);
+    el.title = label;
+  } else el.append(node("span", label));
+  return el;
+}
+function toast(message: string, undo = false) {
+  $("#status-text").textContent = message;
+  $("#status-undo").hidden = !undo;
   $("#status").hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => ($("#status").hidden = true), 6500);
@@ -51,7 +116,9 @@ async function run(fn: () => unknown | Promise<unknown>) {
   busy = true;
   try {
     await fn();
-    await refresh();
+    // Actions can change only what is on screen (search, selection), so redraw
+    // even when the saved library itself did not change.
+    if (!(await refresh())) render();
   } catch (e) {
     toast(e instanceof Error ? e.message : String(e));
   } finally {
@@ -131,387 +198,981 @@ function ask(
     $("#prompt").onclose = () => resolve(result);
   });
 }
-async function refresh() {
-  state = await api({ type: "state" });
+function sameGroup(a: TabGroup, b: TabGroup) {
+  return (
+    a === b ||
+    (a.id === b.id &&
+      a.name === b.name &&
+      a.createdAt === b.createdAt &&
+      a.starred === b.starred &&
+      a.locked === b.locked &&
+      a.folder === b.folder &&
+      a.folderIcon === b.folderIcon &&
+      a.collapsed === b.collapsed &&
+      a.site === b.site &&
+      a.tabs.length === b.tabs.length &&
+      a.tabs.every((tab, i) => {
+        const next = b.tabs[i];
+        return (
+          tab.id === next.id &&
+          tab.url === next.url &&
+          tab.title === next.title &&
+          tab.addedAt === next.addedAt &&
+          tab.sourceLocked === next.sourceLocked
+        );
+      }))
+  );
+}
+function adopt(next: State) {
+  next.groups = next.groups.map((g) => {
+    const previous = groupIndex.get(g.id);
+    return previous && sameGroup(previous, g) ? previous : g;
+  });
+  state = next;
   state.settings = { ...defaults, ...state.settings };
-  const ids = new Set(state.groups.flatMap((g) => g.tabs.map((t) => t.id)));
-  selected = new Set([...selected].filter((id) => ids.has(id)));
+  groupIndex = new Map(state.groups.map((g) => [g.id, g]));
+  orderedGroups = [...state.groups].sort((a, b) => b.createdAt - a.createdAt);
+  groupViews.clear();
+  recentView = undefined;
+  if (selected.size) {
+    const ids = new Set(state.groups.flatMap((g) => g.tabs.map((t) => t.id)));
+    selected = new Set([...selected].filter((id) => ids.has(id)));
+  }
+  if (scope.startsWith("group:") && !groupById(scope.slice(6)))
+    setScope("recent");
+  if (
+    scope.startsWith("folder:") &&
+    !state.groups.some((g) => g.folder === scope.slice(7))
+  )
+    setScope("all");
   render();
 }
-function visibleGroups() {
-  const q = $("#search").value.toLowerCase().trim();
-  const groups = state.groups
-    .filter(
-      (g) =>
-        filter === "all" ||
-        filter === "sites" ||
-        (filter === "starred" ? g.starred : g.folder === filter.slice(7)),
-    )
-    .map((g) => ({
-      ...g,
-      tabs: g.tabs.filter(
-        (t) =>
-          !hiddenRestores.has(t.id) &&
-          (!q ||
-            `${t.title} ${t.url} ${g.name} ${g.folder}`
-              .toLowerCase()
-              .includes(q)),
-      ),
-    }))
-    .filter((g) => g.tabs.length);
-  groups.sort((a, b) => b.createdAt - a.createdAt);
-  if (filter === "sites")
-    return groupBySites(groups).map((g) => ({
-      ...g,
-      collapsed: collapsedSites.has(g.id),
-    }));
+// Returns whether the library changed and the page was redrawn.
+async function refresh() {
+  const next = await api({ type: "state" });
+  if (
+    next.revision &&
+    next.revision === state?.revision &&
+    next.groups.length === state.groups.length &&
+    next.groups[0]?.id === state.groups[0]?.id
+  )
+    return false;
+  adopt(next);
+  return true;
+}
+
+/* ---------- Data for the current view ---------- */
+
+function groupById(id: string) {
+  return groupIndex.get(id);
+}
+function live(groups: TabGroup[]) {
+  let list = liveViews.get(groups);
+  if (!list) {
+    list = entries(groups);
+    if (hiddenRestores.size)
+      list = list.filter(({ tab }) => !hiddenRestores.has(tab.id));
+    liveViews.set(groups, list);
+  }
+  return list;
+}
+function scopeGroups(key = scope) {
+  let groups = groupViews.get(key);
+  if (!groups) {
+    groups =
+      key === "starred"
+        ? orderedGroups.filter((g) => g.starred)
+        : key.startsWith("folder:")
+          ? orderedGroups.filter((g) => g.folder === key.slice(7))
+          : key.startsWith("group:")
+            ? orderedGroups.filter((g) => g.id === key.slice(6))
+            : orderedGroups;
+    groupViews.set(key, groups);
+  }
   return groups;
 }
+function query() {
+  return $("#search").value.toLowerCase().trim();
+}
+function matches(entry: Entry, q = query()) {
+  if (!q) return true;
+  return entry.search.includes(q);
+}
+function recent() {
+  return (recentView ??= newestFirst(entries(orderedGroups)));
+}
+// Tabs in scope that match the search, before the second-column facet.
+function scoped() {
+  if (!scopedView) {
+    const q = query();
+    const list = scope === "recent" ? recent() : live(scopeGroups());
+    scopedView =
+      q || (scope === "recent" && hiddenRestores.size)
+        ? list.filter((e) => !hiddenRestores.has(e.tab.id) && matches(e, q))
+        : list;
+  }
+  return scopedView;
+}
+function facetOf(entry: Entry): string {
+  return scope === "recent" ? bucketOf(entry.addedAt) : `site:${entry.host}`;
+}
+function visible() {
+  if (!visibleView) {
+    const list = scoped();
+    visibleView =
+      facet === "all" ? list : list.filter((e) => facetOf(e) === facet);
+  }
+  return visibleView;
+}
+function setScope(next: string) {
+  if (next !== scope) selected.clear();
+  scope = next;
+  facet = "all";
+  showAllSites = false;
+}
+
+/* ---------- Rendering ---------- */
+
+let viewKey = "";
 function render() {
-  document.body.classList.toggle(
-    "dark",
+  liveViews = new Map();
+  scopedView = visibleView = undefined;
+  const focused = document.activeElement;
+  const focusKey =
+    focused instanceof HTMLElement
+      ? [
+          "data-scope",
+          "data-facet",
+          "data-site",
+          "data-action",
+          "data-folder-toggle",
+        ].find((key) => focused.hasAttribute(key))
+      : undefined;
+  const focusValue = focusKey ? focused?.getAttribute(focusKey) : null;
+  const tabFocus = focused?.closest<HTMLElement>(".tab-row");
+  const tabIndex = tabFocus ? Number(tabFocus.dataset.windowIndex) : -1;
+  // Keep each column's scroll position unless the view itself changed.
+  const lists = ["#navigation", "#facets", "#groups"] as const;
+  const scroll = lists.map((s) => $(s).scrollTop);
+  const view = `${scope}|${facet}`;
+  if (view !== viewKey) {
+    scroll[2] = 0;
+    if (!viewKey.startsWith(`${scope}|`)) scroll[1] = 0;
+  }
+  viewKey = view;
+  listScrollTop = scroll[2];
+  paint();
+  lists.forEach((s, i) => ($(s).scrollTop = scroll[i]));
+  if (focused && !focused.isConnected) {
+    if (focusKey && focusValue !== null && focusValue !== undefined)
+      document
+        .querySelector<HTMLElement>(`[${focusKey}="${CSS.escape(focusValue)}"]`)
+        ?.focus({ preventScroll: true });
+    else if (tabFocus) {
+      let index = tabItems.findIndex(
+        (item) =>
+          item.kind === "tab" && item.entry.tab.id === tabFocus.dataset.tab,
+      );
+      if (index < 0) {
+        index = Math.min(tabIndex, tabItems.length - 1);
+        while (index >= 0 && tabItems[index].kind !== "tab") index--;
+      }
+      if (index < 0 || !tabWindow.focus(index, focused.tagName.toLowerCase()))
+        $("#search").focus({ preventScroll: true });
+    }
+  }
+  drawVine();
+}
+function paint() {
+  const dark =
     state.settings.theme === "dark" ||
-      (state.settings.theme === "system" &&
-        matchMedia("(prefers-color-scheme: dark)").matches),
-  );
-  const nav = $("#navigation");
-  nav.replaceChildren();
-  const folders = [
-    ...new Set(state.groups.map((g) => g.folder).filter(Boolean)),
-  ].sort();
-  for (const [key, label, symbol] of [
-    ["starred", "Starred", "star"],
-    ["all", "All tabs", "tabs"],
-    ["sites", "Group by sites", "globe"],
-    ...folders.map((f) => [
-      "folder:" + f,
-      f,
-      state.groups.find((g) => g.folder === f && g.folderIcon)?.folderIcon ||
-        "folder",
-    ]),
-  ]) {
-    let count = state.groups
-      .filter(
-        (g) =>
-          key === "all" ||
-          key === "sites" ||
-          (key === "starred" ? g.starred : g.folder === key.slice(7)),
-      )
-      .reduce(
-        (n, g) => n + g.tabs.filter((t) => !hiddenRestores.has(t.id)).length,
-        0,
-      );
-    if (key === "sites")
-      count = groupBySites(
-        state.groups.map((g) => ({
-          ...g,
-          tabs: g.tabs.filter((t) => !hiddenRestores.has(t.id)),
-        })),
-      ).length;
-    const el = button("", async () => {
-      filter = key;
-      selected.clear();
-    });
-    const name = node("span", undefined, "nav-name");
-    name.append(icon(symbol), node("span", label, "nav-label"));
-    const badge = node("span", count, "nav-count");
-    badge.title = `${count} ${key === "sites" ? "websites" : "tabs"}`;
-    badge.setAttribute("aria-label", badge.title);
-    el.append(name, badge);
-    el.classList.toggle("active", filter === key);
-    nav.append(el);
-  }
-  const groups = visibleGroups(),
-    count = groups.reduce((n, g) => n + g.tabs.length, 0);
-  $("#heading").textContent =
-    filter === "all"
-      ? "All tabs"
-      : filter === "sites"
-        ? "Group by sites"
-        : filter === "starred"
-          ? "Starred"
-          : filter.slice(7);
+    (state.settings.theme !== "light" &&
+      matchMedia("(prefers-color-scheme: dark)").matches);
+  document.body.classList.toggle("dark", dark);
+  document.body.classList.toggle("light", !dark);
+  localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+  const all = live(state.groups);
   $("#summary").textContent =
-    `${count} saved ${count === 1 ? "tab" : "tabs"} in ${groups.length} ${filter === "sites" ? (groups.length === 1 ? "site" : "sites") : groups.length === 1 ? "group" : "groups"}`;
-  $("#undo").disabled = !state.trash?.length;
-  $("#restore-all").disabled = !count;
-  $("#selection").hidden = !selected.size;
-  $("#selected-count").textContent = `${selected.size} selected`;
-  const container = $("#groups");
-  container.replaceChildren();
-  if (!groups.length) {
-    const empty = node("div", undefined, "empty");
-    const img = node("img");
-    img.src = "../icons/128.png";
-    img.alt = "";
-    empty.append(
-      img,
-      node("h2", state.groups.length ? "No matching tabs" : "No saved tabs"),
-      button("Import from OneTab", async () => $("#transfer").showModal()),
-    );
-    container.append(empty);
+    `${all.length} saved ${all.length === 1 ? "tab" : "tabs"}`;
+  $("#theme-toggle").setAttribute(
+    "aria-label",
+    document.body.classList.contains("dark")
+      ? "Switch to light theme"
+      : "Switch to dark theme",
+  );
+  $("#theme-toggle").title = $("#theme-toggle").getAttribute("aria-label")!;
+  renderNavigation();
+  renderScopeHead();
+  renderFacets();
+  renderTabs();
+}
+
+function folderIconOf(folder: string) {
+  return (
+    state.groups.find((g) => g.folder === folder && g.folderIcon)?.folderIcon ||
+    "folder"
+  );
+}
+// One icon per collection: its most saved site.
+function leadIcon(group: TabGroup) {
+  const top = groupSites(group)[0];
+  const tab = top && entries([group]).find((e) => e.host === top.host)?.tab;
+  return tab ? websiteIcon(tab.url) : icon("folder");
+}
+function scopeRow(key: string, label: string, symbol: string, count: number) {
+  const row = actionButton(
+    "",
+    () => {
+      setScope(key);
+      render();
+    },
+    "row scope",
+  );
+  row.dataset.scope = key;
+  row.append(
+    icon(symbol),
+    node("span", label, "label"),
+    node("span", count, "count"),
+  );
+  row.classList.toggle("is-current", scope === key);
+  if (scope === key) row.setAttribute("aria-current", "true");
+  return row;
+}
+function buildCollectionRow(g: TabGroup, inFolder: boolean) {
+  const key = `group:${g.id}`;
+  const count = live([g]).length;
+  const row = actionButton(
+    "",
+    () => {
+      setScope(key);
+      render();
+    },
+    "row collection",
+  );
+  row.dataset.scope = key;
+  row.dataset.group = g.id;
+  row.title = `${collectionLabel(g)}\n${plural(count, "tab")} · saved ${ago(g.createdAt)}`;
+  const name = node("span", collectionLabel(g), "label");
+  if (!g.name) name.classList.add("unnamed");
+  const marks = node("span", undefined, "marks");
+  if (g.starred) marks.append(icon("star", "mark star"));
+  if (g.locked) marks.append(icon("lock", "mark lock"));
+  row.append(leadIcon(g), name);
+  if (marks.childElementCount) row.append(marks);
+  row.append(node("span", count, "count"));
+  row.classList.toggle("in-folder", inFolder);
+  row.classList.toggle("is-current", scope === key);
+  if (scope === key) row.setAttribute("aria-current", "true");
+  const q = query();
+  if (q && !live([g]).some((e) => matches(e, q))) row.classList.add("dim");
+  row.addEventListener("dragover", (e) => {
+    // A selection can span collections; only a drop that moves nothing is refused.
+    if (!dragged || g.locked) return;
+    const own = new Set(g.tabs.map((t) => t.id));
+    if (dragged.ids.every((id) => own.has(id))) return;
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = "move";
+    row.classList.add("drop-target");
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
+  row.addEventListener("drop", (e) => {
+    e.preventDefault();
+    row.classList.remove("drop-target");
+    if (dragged && !g.locked) run(() => moveDragged(g.id));
+  });
+  return row;
+}
+function collectionRow(g: TabGroup, inFolder: boolean) {
+  let row = collectionRows.get(g);
+  if (!row) {
+    row = buildCollectionRow(g, inFolder);
+    collectionRows.set(g, row);
   }
-  for (const g of groups) {
-    const section = node("section", undefined, "group");
-    section.dataset.group = g.id;
-    section.dataset.droppable = String(!g.site && !g.locked);
-    const top = node("div", undefined, "group-top");
-    const h2 = node("h2");
-    if (g.site) h2.textContent = g.name;
-    else
-      h2.append(
-        button(
-          `${g.starred ? "★ " : ""}${g.locked ? "▣ " : ""}${g.name || `${g.tabs.length} ${g.tabs.length === 1 ? "tab" : "tabs"}`}`,
-          async () => {
-            const name = await ask("Name this group", { value: g.name });
-            if (name !== null)
-              await api({ type: "update", groupId: g.id, patch: { name } });
-          },
-        ),
-      );
-    top.append(h2);
-    const date = node(
-      "p",
-      `${new Date(g.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}${g.name ? ` · ${g.tabs.length} tabs` : ""}${g.folder ? ` · ${g.folder}` : ""}`,
-      "group-date",
+  const count = live([g]).length;
+  const current = scope === `group:${g.id}`;
+  row.classList.toggle("is-current", current);
+  if (current) row.setAttribute("aria-current", "true");
+  else row.removeAttribute("aria-current");
+  const q = query();
+  row.classList.toggle("dim", !!q && !live([g]).some((e) => matches(e, q)));
+  const counter = row.querySelector(".count")!;
+  if (counter.textContent !== String(count))
+    counter.textContent = String(count);
+  row.title = `${collectionLabel(g)}\n${plural(count, "tab")} · saved ${ago(g.createdAt)}`;
+  return row;
+}
+function renderNavigation() {
+  const nav = $("#navigation");
+  const children: HTMLElement[] = [];
+  const groups = scopeGroups("all");
+  children.push(
+    scopeRow("recent", "Recent", "recent", live(groups).length),
+    scopeRow("all", "All tabs", "tabs", live(groups).length),
+    scopeRow("starred", "Starred", "star", live(scopeGroups("starred")).length),
+  );
+  const eyebrow = node("div", undefined, "eyebrow");
+  eyebrow.append(
+    node("span", "Collections"),
+    toolButton("New folder", "plus", newFolder, "eyebrow-action", true),
+  );
+  eyebrow.querySelector("button")!.dataset.action = "new-folder";
+  children.push(eyebrow);
+  if (!groups.length)
+    children.push(
+      node("p", "Saved windows and tabs appear here, newest first.", "quiet"),
     );
-    const actions = node("div", undefined, "group-actions");
-    if (g.site)
-      actions.append(
-        button("Restore all", () => restore({ ids: g.tabs.map((t) => t.id) })),
-        button(
-          "Delete all",
-          () => remove({ ids: g.tabs.map((t) => t.id) }),
-          "danger",
-        ),
-        button("Select all", async () => {
-          for (const tab of g.tabs) selected.add(tab.id);
-        }),
-        button("Copy links", async () => {
-          await navigator.clipboard.writeText(exportText([g]));
-          toast("Site links copied.");
-        }),
-        button(g.collapsed ? "Expand" : "Collapse", async () => {
-          if (g.collapsed) collapsedSites.delete(g.id);
-          else collapsedSites.add(g.id);
-        }),
-      );
-    else
-      actions.append(
-        button("Restore all", () =>
-          restore({ groupId: g.id, ids: g.tabs.map((t) => t.id) }),
-        ),
-        button(
-          "Delete all",
-          () => remove({ groupId: g.id, ids: g.tabs.map((t) => t.id) }),
-          "danger",
-        ),
-        button(g.starred ? "Unstar" : "Star", () =>
+  const folders = [
+    ...new Set(groups.map((g) => g.folder).filter(Boolean)),
+  ].sort();
+  for (const f of folders) {
+    const members = groups.filter((g) => g.folder === f);
+    const key = `folder:${f}`;
+    const head = node("div", undefined, "folder-head");
+    const toggle = actionButton(
+      "",
+      () => {
+        if (collapsedFolders.has(f)) collapsedFolders.delete(f);
+        else collapsedFolders.add(f);
+        render();
+      },
+      "folder-toggle",
+    );
+    toggle.dataset.folderToggle = f;
+    toggle.setAttribute("aria-expanded", String(!collapsedFolders.has(f)));
+    toggle.setAttribute(
+      "aria-label",
+      `${collapsedFolders.has(f) ? "Expand" : "Collapse"} ${f}`,
+    );
+    toggle.append(icon("chevron"));
+    const row = actionButton(
+      "",
+      () => {
+        setScope(key);
+        render();
+      },
+      "row folder",
+    );
+    row.dataset.scope = key;
+    row.append(
+      icon(members.find((g) => g.folderIcon)?.folderIcon || "folder"),
+      node("span", f, "label"),
+      node("span", live(members).length, "count"),
+    );
+    row.classList.toggle("is-current", scope === key);
+    if (scope === key) row.setAttribute("aria-current", "true");
+    row.title = f;
+    head.append(toggle, row);
+    head.classList.toggle("closed", collapsedFolders.has(f));
+    children.push(head);
+    if (
+      !collapsedFolders.has(f) ||
+      members.some((g) => scope === `group:${g.id}`)
+    )
+      for (const g of members) children.push(collectionRow(g, true));
+  }
+  for (const g of groups.filter((g) => !g.folder))
+    children.push(collectionRow(g, false));
+  reconcile(nav, children);
+}
+
+function renderScopeHead() {
+  const head = $("#scope-head");
+  head.replaceChildren();
+  const title = node("h2");
+  title.id = "scope-title";
+  const sub = node("p", undefined, "sub");
+  const acts = node("div", undefined, "acts");
+  const list = live(scopeGroups());
+  const ids = () => visible().map((e) => e.tab.id);
+  if (scope.startsWith("group:")) {
+    const g = groupById(scope.slice(6))!;
+    const rename = button(
+      collectionLabel(g),
+      async () => {
+        const name = await ask("Name this collection", { value: g.name });
+        if (name !== null)
+          await api({
+            type: "update",
+            groupId: g.id,
+            patch: { name: name.trim() },
+          });
+      },
+      g.name ? "rename" : "rename unnamed",
+    );
+    const label = node("span", collectionLabel(g));
+    rename.replaceChildren(label);
+    rename.dataset.action = "rename";
+    rename.title = `Rename “${collectionLabel(g)}”`;
+    rename.append(icon("pencil", "rename-icon"));
+    title.append(rename);
+    sub.textContent = `${plural(list.length, "tab")} · ${ago(g.createdAt)}`;
+    sub.title = `Saved ${longDate(g.createdAt)}`;
+    acts.append(
+      toolButton(
+        "Restore all",
+        "restore",
+        () => restore({ groupId: g.id, ids: list.map((e) => e.tab.id) }),
+        "primary",
+      ),
+      toolButton(
+        "Copy links",
+        "copy",
+        () => copyLinks(list.map((e) => e.tab.id)),
+        "",
+        true,
+      ),
+      toolButton(
+        g.starred ? "Unstar" : "Star",
+        "star",
+        () =>
           api({
             type: "update",
             groupId: g.id,
             patch: { starred: !g.starred },
           }),
-        ),
-        button(g.locked ? "Unlock" : "Lock", () =>
+        g.starred ? "on star" : "",
+        true,
+      ),
+      toolButton(
+        g.locked ? "Unlock" : "Lock",
+        "lock",
+        () =>
           api({ type: "update", groupId: g.id, patch: { locked: !g.locked } }),
-        ),
-        button("Select all", async () => {
-          for (const t of g.tabs) selected.add(t.id);
-        }),
-        button("Copy links", async () => {
-          await navigator.clipboard.writeText(exportText([g]));
-          toast("Group links copied.");
-        }),
-        button("Folder", async () => {
-          const folder = await ask("Move group to folder", {
+        g.locked ? "on" : "",
+        true,
+      ),
+      toolButton(
+        g.folder ? `Folder: ${g.folder}` : "Move to folder",
+        "folder",
+        async () => {
+          const folder = await ask("Move collection to folder", {
             value: g.folder,
+            folderIcon: folderIconOf(g.folder),
             description:
-              "Enter a folder name, or leave empty to remove it from a folder.",
+              "Type a folder name and pick its icon. Leave the name empty to take the collection out of its folder.",
           });
           if (folder !== null)
             await api({
               type: "update",
               groupId: g.id,
-              patch: { folder: folder.trim() },
+              patch: { folder: folder.name.trim(), folderIcon: folder.icon },
             });
-        }),
-        button(g.collapsed ? "Expand" : "Collapse", () =>
-          api({
-            type: "update",
-            groupId: g.id,
-            patch: { collapsed: !g.collapsed },
-          }),
-        ),
-      );
-    section.append(top, date, actions);
-    if (!g.collapsed || $("#search").value)
-      for (const t of g.tabs) {
-        const row = node("div", undefined, "tab-row");
-        row.draggable = !g.site && !g.locked;
-        row.dataset.tab = t.id;
-        const check = node("input");
-        check.type = "checkbox";
-        check.checked = selected.has(t.id);
-        check.setAttribute("aria-label", `Select ${t.title}`);
-        check.onchange = () => {
-          if (check.checked) selected.add(t.id);
-          else selected.delete(t.id);
-          $("#selection").hidden = !selected.size;
-          $("#selected-count").textContent = `${selected.size} selected`;
-        };
-        const host = new URL(t.url).hostname.replace(/^www\./, "") || "file";
-        const mark = websiteIcon(t.url);
-        const link = node("a", t.title);
-        link.href = t.url;
-        if (restoring.has(t.id)) {
-          link.setAttribute("aria-disabled", "true");
-          link.setAttribute("aria-busy", "true");
-        }
-        link.title = t.url + (t.sourceLocked ? " (locked group)" : "");
-        link.onclick = (e) => {
-          e.preventDefault();
-          if (e.detail > 1) return;
-          restore({ ids: [t.id], keep: e.ctrlKey || e.metaKey }).catch(
-            (e: unknown) => toast(e instanceof Error ? e.message : String(e)),
-          );
-        };
-        link.onauxclick = (e) => {
-          if (e.button === 1) {
-            e.preventDefault();
-            if (e.detail > 1) return;
-            restore({ ids: [t.id], keep: true }).catch((e: unknown) =>
-              toast(e instanceof Error ? e.message : String(e)),
-            );
-          }
-        };
-        row.append(
-          check,
-          mark,
-          link,
-          node("span", host, "domain"),
-          addedTime(t.addedAt ?? g.createdAt),
-          button("×", () => remove({ ids: [t.id] })),
-        );
-        row.lastElementChild!.setAttribute("aria-label", `Delete ${t.title}`);
-        row.addEventListener("dragstart", (e) =>
-          startDrag(e, { groupId: g.id, tabId: t.id }),
-        );
-        row.addEventListener("drop", (e) => {
-          if (g.site) return;
-          e.preventDefault();
-          e.stopPropagation();
-          const after =
-            e.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2;
-          const beforeId = after
-            ? (row.nextElementSibling as HTMLElement | null)?.dataset.tab
-            : t.id;
-          run(() => drop(g.id, beforeId));
-        });
-        section.append(row);
-      }
-    section.addEventListener("dragover", (e) => {
-      if (g.site || g.locked || !dragged) return;
-      e.preventDefault();
-      e.dataTransfer!.dropEffect = "move";
-      highlightDropTarget(section);
-    });
-    section.addEventListener("drop", (e) => {
-      if (g.site) return;
-      e.preventDefault();
-      section.classList.remove("drag-over");
-      run(() => drop(g.id));
-    });
-    container.append(section);
-  }
-}
-function startDrag(e: DragEvent, data: { groupId: string; tabId?: string }) {
-  if (!(e.currentTarget as HTMLElement).draggable) {
-    e.preventDefault();
+        },
+        "",
+        true,
+      ),
+      toolButton(
+        "Delete all",
+        "trash",
+        () =>
+          remove(
+            list.map((e) => e.tab.id),
+            g.id,
+          ),
+        "danger",
+        true,
+      ),
+    );
+    const removeAll = acts.querySelector<HTMLButtonElement>(".danger")!;
+    removeAll.disabled = g.locked;
+    if (g.locked) removeAll.title = "Unlock this collection to delete tabs";
+    acts
+      .querySelector('[data-action="star"]')!
+      .setAttribute("aria-pressed", String(g.starred));
+    acts
+      .querySelector('[data-action="lock"]')!
+      .setAttribute("aria-pressed", String(g.locked));
+    head.append(title, sub, acts);
     return;
   }
-  dragged = data;
-  e.dataTransfer!.setData("text/plain", data.tabId || data.groupId);
-  e.dataTransfer!.effectAllowed = "move";
-  document.body.classList.add("dragging");
-  highlightDropTarget((e.currentTarget as HTMLElement).closest(".group"));
+  if (scope === "recent") {
+    title.textContent = "Recent";
+    const newest = recent().find((e) => !hiddenRestores.has(e.tab.id));
+    sub.textContent = newest
+      ? `Last saved ${ago(newest.addedAt)}`
+      : "Newest first";
+  } else if (scope.startsWith("folder:")) {
+    const f = scope.slice(7);
+    title.textContent = f;
+    sub.textContent = `${plural(scopeGroups().length, "collection")} · ${plural(list.length, "tab")}`;
+    acts.append(
+      toolButton(
+        "Restore all",
+        "restore",
+        () => restore({ ids: ids() }),
+        "primary",
+      ),
+      toolButton("Copy links", "copy", () => copyLinks(ids()), "", true),
+      toolButton(
+        "Edit folder",
+        "pencil",
+        async () => {
+          const edit = await ask("Edit folder", {
+            value: f,
+            folderIcon: folderIconOf(f),
+            description: "Change the folder's name or its icon.",
+          });
+          const name = edit?.name.trim();
+          if (!edit || !name) return;
+          for (const g of scopeGroups())
+            await api({
+              type: "update",
+              groupId: g.id,
+              patch: { folder: name, folderIcon: edit.icon },
+            });
+          scope = `folder:${name}`;
+        },
+        "",
+        true,
+      ),
+    );
+  } else {
+    title.textContent = scope === "starred" ? "Starred" : "All tabs";
+    sub.textContent = `${plural(scopeGroups().length, "collection")} · ${plural(sites(list).length, "site")}`;
+    acts.append(
+      toolButton("Copy links", "copy", () => copyLinks(ids()), "", true),
+    );
+  }
+  for (const action of acts.querySelectorAll<HTMLButtonElement>(
+    '[data-action="copy"], [data-action="restore"]',
+  ))
+    action.disabled = !visible().length;
+  head.append(title, sub);
+  if (acts.childElementCount) head.append(acts);
 }
-let dropTarget: HTMLElement | null = null;
+
+function facetRow(key: string, label: string, count: number, lead: Element) {
+  const row = actionButton(
+    "",
+    () => {
+      facet = key;
+      render();
+    },
+    "row facet",
+  );
+  row.dataset.facet = key;
+  row.title = label;
+  row.append(lead, node("span", label, "label"), node("span", count, "count"));
+  row.classList.toggle("is-current", facet === key);
+  if (facet === key) row.setAttribute("aria-current", "true");
+  if (!count) row.classList.add("dim");
+  return row;
+}
+function renderFacets() {
+  const list = $("#facets");
+  list.replaceChildren();
+  const all = scoped();
+  if (!state.groups.length) {
+    list.append(
+      node(
+        "p",
+        "Sites and save times show up here once you save tabs.",
+        "quiet",
+      ),
+    );
+    return;
+  }
+  if (scope === "recent") {
+    list.append(facetRow("all", bucketNames.all, all.length, icon("layers")));
+    const counts = new Map<string, number>();
+    for (const entry of all) {
+      const key = facetOf(entry);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    for (const b of ["today", "yesterday", "week", "earlier"] as Bucket[]) {
+      const count = counts.get(b) ?? 0;
+      if (count || facet === b)
+        list.append(facetRow(b, bucketNames[b], count, icon("recent")));
+    }
+    return;
+  }
+  list.append(facetRow("all", "All sites", all.length, icon("layers")));
+  const counts = [...sites(all)];
+  const samples = new Map<string, Entry>();
+  for (const entry of all)
+    if (!samples.has(entry.host)) samples.set(entry.host, entry);
+  const current = facet.startsWith("site:") ? facet.slice(5) : null;
+  if (current !== null && !counts.some((s) => s.host === current))
+    counts.push({ host: current, label: siteLabel(current), count: 0 });
+  const singles = counts.filter((s) => s.count <= 1 && s.host !== current);
+  const folded =
+    !showAllSites && counts.length > SITE_LIMIT && singles.length > 1;
+  const shown = folded ? counts.filter((s) => !singles.includes(s)) : counts;
+  for (const s of shown) {
+    const sample = samples.get(s.host);
+    const lead = sample
+      ? websiteIcon(sample.tab.url)
+      : icon("file", "site-mark file-mark");
+    list.append(facetRow(`site:${s.host}`, s.label, s.count, lead));
+  }
+  if (counts.length > SITE_LIMIT && singles.length > 1) {
+    const more = actionButton(
+      "",
+      () => {
+        showAllSites = !showAllSites;
+        render();
+      },
+      "row more",
+    );
+    more.append(
+      node(
+        "span",
+        showAllSites
+          ? "Fold sites with one tab"
+          : `${plural(singles.length, "more site")} with one tab`,
+      ),
+      icon("chevron"),
+    );
+    more.classList.toggle("open", showAllSites);
+    more.setAttribute("aria-expanded", String(showAllSites));
+    more.dataset.action = "more-sites";
+    list.append(more);
+  }
+}
+
+function separator(text: string, detail: string, onClick?: () => void) {
+  const sep = node("div", undefined, "sep");
+  const label = onClick
+    ? actionButton(text, onClick, "sep-label")
+    : node("span", text, "sep-label");
+  sep.append(label, node("span", detail, "sep-detail"));
+  return sep;
+}
+function tabRow(entry: Entry, opts: { showHost: boolean }) {
+  const { tab: t, group: g } = entry;
+  const row = node("div", undefined, "tab-row");
+  row.dataset.tab = t.id;
+  row.dataset.group = g.id;
+  row.draggable = !g.locked;
+  row.classList.toggle("selected", selected.has(t.id));
+  const check = node("input");
+  check.type = "checkbox";
+  check.checked = selected.has(t.id);
+  check.setAttribute("aria-label", `Select ${t.title}`);
+  check.onchange = () => {
+    if (check.checked) selected.add(t.id);
+    else selected.delete(t.id);
+    row.classList.toggle("selected", check.checked);
+    updateSelection();
+  };
+  const link = node("a", t.title);
+  link.href = t.url;
+  if (restoring.has(t.id)) {
+    link.setAttribute("aria-disabled", "true");
+    link.setAttribute("aria-busy", "true");
+  }
+  link.title = t.url + (g.locked ? " (locked collection)" : "");
+  link.onclick = (e) => {
+    e.preventDefault();
+    if (e.detail > 1) return;
+    restore({ ids: [t.id], keep: e.ctrlKey || e.metaKey }).catch((e: unknown) =>
+      toast(e instanceof Error ? e.message : String(e)),
+    );
+  };
+  link.onauxclick = (e) => {
+    if (e.button === 1) {
+      e.preventDefault();
+      if (e.detail > 1) return;
+      restore({ ids: [t.id], keep: true }).catch((e: unknown) =>
+        toast(e instanceof Error ? e.message : String(e)),
+      );
+    }
+  };
+  const meta = node("span", undefined, "meta");
+  if (opts.showHost) meta.append(node("span", siteLabel(entry.host), "domain"));
+  const time = node("time", shortAgo(entry.addedAt), "tab-date");
+  time.dateTime = new Date(entry.addedAt).toISOString();
+  time.title = `Saved ${longDate(entry.addedAt)}`;
+  meta.append(time);
+  const del = actionButton("", () => run(() => remove([t.id])), "delete");
+  del.append(icon("close"));
+  del.setAttribute("aria-label", `Delete ${t.title}`);
+  del.disabled = g.locked;
+  if (g.locked) del.title = "Unlock this collection to delete tabs";
+  row.append(check, websiteIcon(t.url), link, meta, del);
+  row.addEventListener("dragstart", (e) => {
+    if (!row.draggable) return e.preventDefault();
+    const ids = selected.has(t.id)
+      ? visible()
+          .filter((v) => selected.has(v.tab.id) && !v.group.locked)
+          .map((v) => v.tab.id)
+      : [t.id];
+    dragged = { groupId: g.id, ids };
+    e.dataTransfer!.setData("text/plain", t.url);
+    e.dataTransfer!.effectAllowed = "move";
+    document.body.classList.add("dragging");
+  });
+  // Reordering only makes sense inside one collection's full list.
+  const reorderable =
+    scope === `group:${g.id}` && facet === "all" && !query() && !g.locked;
+  if (reorderable) {
+    row.addEventListener("dragover", (e) => {
+      if (!dragged) return;
+      e.preventDefault();
+      const after =
+        e.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2;
+      setInsertion(row, after);
+    });
+    row.addEventListener("drop", (e) => {
+      if (!dragged) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const after =
+        e.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2;
+      const beforeId = after
+        ? live([g])[live([g]).findIndex((e) => e.tab.id === t.id) + 1]?.tab.id
+        : t.id;
+      run(() => moveDragged(g.id, beforeId));
+    });
+  }
+  return row;
+}
+function renderTabs() {
+  const list = visible();
+  const container = $("#groups");
+  const heading = $("#heading");
+  const sub = $("#subheading");
+  const site = facet.startsWith("site:") ? siteLabel(facet.slice(5)) : null;
+  const inScope = scoped().length;
+  if (scope === "recent") {
+    heading.textContent =
+      facet === "all" ? "Newest first" : bucketNames[facet as Bucket];
+    sub.textContent = "Last saved is on top. Restore it with one click.";
+  } else {
+    const where = scope.startsWith("group:")
+      ? collectionLabel(groupById(scope.slice(6))!)
+      : scope === "starred"
+        ? "Starred"
+        : scope.startsWith("folder:")
+          ? scope.slice(7)
+          : "All tabs";
+    heading.textContent = site ?? where;
+    sub.textContent = site
+      ? `${list.length} of ${inScope} in ${where}`
+      : scope.startsWith("group:")
+        ? "Saved in this collection"
+        : query() && !list.length
+          ? "No matches in this scope"
+          : `Across ${plural(new Set(list.map((e) => e.group.id)).size, "collection")}`;
+  }
+  heading.title = heading.textContent;
+  $("#list-meta").textContent = query()
+    ? `${plural(list.length, "match", "matches")}`
+    : plural(list.length, "tab");
+  $("#restore-all").disabled = !list.length;
+  $("#undo").hidden = !state.trash?.length;
+  tabItems = [];
+  if (scope === "recent") {
+    for (let i = 0; i < list.length;) {
+      const entry = list[i];
+      const minute = Math.floor(entry.addedAt / 60_000);
+      let end = i + 1;
+      while (
+        end < list.length &&
+        list[end].group.id === entry.group.id &&
+        Math.floor(list[end].addedAt / 60_000) === minute
+      )
+        end++;
+      tabItems.push({ kind: "separator", entry, count: end - i, recent: true });
+      while (i < end) tabItems.push({ kind: "tab", entry: list[i++] });
+    }
+  } else if (scope.startsWith("group:")) {
+    tabItems = list.map((entry) => ({ kind: "tab", entry }));
+  } else {
+    const counts = new Map<TabGroup, number>();
+    for (const entry of list)
+      counts.set(entry.group, (counts.get(entry.group) ?? 0) + 1);
+    let last: TabGroup | undefined;
+    for (const entry of list) {
+      if (entry.group !== last) {
+        last = entry.group;
+        tabItems.push({
+          kind: "separator",
+          entry,
+          count: counts.get(entry.group)!,
+          recent: false,
+        });
+      }
+      tabItems.push({ kind: "tab", entry });
+    }
+  }
+  const showHost = !site;
+  const paintWindow = () =>
+    tabWindow.set(
+      tabItems,
+      (item) =>
+        item.kind === "tab"
+          ? tabRow(item.entry, { showHost })
+          : separator(
+              item.recent
+                ? `Saved ${savedAt(item.entry.addedAt)}`
+                : collectionLabel(item.entry.group),
+              item.recent
+                ? `${collectionLabel(item.entry.group)} · ${plural(item.count, "tab")}`
+                : `${plural(item.count, "tab")} · ${savedAt(item.entry.group.createdAt)}`,
+              () => {
+                setScope(`group:${item.entry.group.id}`);
+                render();
+              },
+            ),
+      (item, i) =>
+        item.kind === "tab" ? tabHeight : separatorHeight - (i === 0 ? 8 : 0),
+      listScrollTop,
+    );
+  paintWindow();
+  if (!list.length) {
+    const empty = node("div", undefined, "empty");
+    if (!state.groups.length) {
+      empty.append(
+        node("h2", "Nothing saved yet"),
+        node(
+          "p",
+          "Press Alt+C on any page to save it here, or save this whole window. Your newest save always lands on top.",
+        ),
+        button("Import from OneTab", async () => $("#transfer").showModal()),
+      );
+    } else if (query()) {
+      empty.append(
+        node("h2", "No matching tabs"),
+        node("p", `Nothing here matches “${$("#search").value.trim()}”.`),
+        button("Clear search", async () => {
+          $("#search").value = "";
+          $("#search").focus();
+        }),
+      );
+    } else if (scope === "starred") {
+      empty.append(
+        node("h2", "No starred collections"),
+        node("p", "Star a collection in its details to find its tabs here."),
+      );
+    } else {
+      empty.append(
+        node("h2", "No tabs here"),
+        node("p", "Pick another collection or site."),
+      );
+    }
+    container.append(empty);
+  }
+  const row = container.querySelector<HTMLElement>(".tab-row");
+  const sep = container.querySelector<HTMLElement>(".sep");
+  const nextTabHeight = row?.getBoundingClientRect().height ?? tabHeight;
+  const nextSeparatorHeight = sep
+    ? sep.getBoundingClientRect().height + 18
+    : separatorHeight;
+  if (nextTabHeight !== tabHeight || nextSeparatorHeight !== separatorHeight) {
+    tabHeight = nextTabHeight;
+    separatorHeight = nextSeparatorHeight;
+    paintWindow();
+  }
+  updateSelection();
+}
+function paintSelection() {
+  for (const row of $("#groups").querySelectorAll<HTMLElement>(".tab-row")) {
+    const checked = selected.has(row.dataset.tab!);
+    row.classList.toggle("selected", checked);
+    row.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked =
+      checked;
+  }
+  updateSelection();
+}
+function updateSelection() {
+  const ids = visible().map((e) => e.tab.id);
+  const chosen = ids.filter((id) => selected.has(id)).length;
+  $("#selection").hidden = !selected.size;
+  $("#hint").hidden = !!selected.size;
+  $("#selected-count").textContent =
+    `${selected.size} selected${selected.size > chosen ? ` · ${selected.size - chosen} hidden` : ""}`;
+  const all = $("#select-all");
+  all.checked = !!ids.length && chosen === ids.length;
+  all.indeterminate = chosen > 0 && chosen < ids.length;
+  all.disabled = !ids.length;
+}
+
+/* ---------- Vine ---------- */
+
+function drawVine() {
+  const links: VineLink[] = [
+    {
+      from: $("#col-1"),
+      fromRow: $("#navigation").querySelector<HTMLElement>(".is-current"),
+      to: $("#col-2"),
+      toRow: $("#facets").querySelector<HTMLElement>(".is-current"),
+    },
+    {
+      from: $("#col-2"),
+      fromRow: $("#facets").querySelector<HTMLElement>(".is-current"),
+      to: $("#col-3"),
+      toRow: $("#list-head"),
+    },
+  ];
+  vine.draw(links, `${scope}|${facet}`);
+}
+let vineFrame = 0;
+function followVine() {
+  cancelAnimationFrame(vineFrame);
+  vineFrame = requestAnimationFrame(() => state && drawVine());
+}
+for (const list of ["#navigation", "#facets"] as const)
+  $(list).addEventListener("scroll", followVine, { passive: true });
+addEventListener("resize", followVine);
+const vineObserver = new ResizeObserver(followVine);
+for (const target of ["#scope-head", "#list-head", "#facets"] as const)
+  vineObserver.observe($(target));
+document.fonts.ready.then(followVine);
+
+/* ---------- Drag and drop ---------- */
+
 let insertionRow: HTMLElement | null = null;
 function setInsertion(row: HTMLElement | null, after = false) {
   if (insertionRow !== row) {
     insertionRow?.classList.remove("insert-before", "insert-after");
     insertionRow = row;
   }
-  if (row) {
-    row.classList.toggle("insert-before", !after);
-    row.classList.toggle("insert-after", after);
-  }
-}
-function highlightDropTarget(target: HTMLElement | null) {
-  if (target === dropTarget) return;
-  dropTarget?.classList.remove("drag-over");
-  dropTarget = target;
-  dropTarget?.classList.add("drag-over");
+  row?.classList.toggle("insert-before", !after);
+  row?.classList.toggle("insert-after", after);
 }
 function finishDrag() {
   dragged = null;
-  highlightDropTarget(null);
   setInsertion(null);
   document.body.classList.remove("dragging");
+  for (const el of document.querySelectorAll(".drop-target"))
+    el.classList.remove("drop-target");
 }
-// Track the card, not its changing child elements, throughout a native drag.
-for (const event of ["dragenter", "dragover"] as const)
-  document.addEventListener(
-    event,
-    (e) => {
-      if (!dragged) return;
-      const target = e.target instanceof Element ? e.target : null;
-      const card = target?.closest<HTMLElement>(".group");
-      highlightDropTarget(card?.dataset.droppable === "true" ? card : null);
-      const row = target?.closest<HTMLElement>(".tab-row");
-      if (row && dropTarget)
-        setInsertion(
-          row,
-          e.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2,
-        );
-      else setInsertion(null);
-    },
-    true,
-  );
-document.addEventListener("dragleave", (e) => {
-  if (
-    !e.relatedTarget &&
-    (e.clientX <= 0 ||
-      e.clientY <= 0 ||
-      e.clientX >= innerWidth ||
-      e.clientY >= innerHeight)
-  )
-    highlightDropTarget(null);
-});
-async function drop(targetId?: string, beforeId?: string) {
+async function moveDragged(targetId?: string, beforeId?: string) {
   if (!dragged) return;
   const d = dragged;
   finishDrag();
-  if (d.tabId === beforeId) return;
-  if (d.tabId)
-    await api(
-      d.groupId === targetId
-        ? { type: "reorder", groupId: targetId, tabId: d.tabId, beforeId }
-        : { type: "move", ids: [d.tabId], targetId, beforeId },
-    );
-  else if (targetId !== d.groupId)
-    await api({ type: "reorder", groupId: d.groupId, beforeId: targetId });
+  if (d.ids.length === 1 && d.ids[0] === beforeId) return;
+  if (d.groupId === targetId && d.ids.length === 1)
+    await api({
+      type: "reorder",
+      groupId: targetId,
+      tabId: d.ids[0],
+      beforeId,
+    });
+  else await api({ type: "move", ids: d.ids, targetId, beforeId });
+  if (!targetId)
+    toast(`Started a new collection with ${plural(d.ids.length, "tab")}.`);
+  for (const id of d.ids) selected.delete(id);
 }
 document.addEventListener("dragend", finishDrag);
-$("#drop-zone").ondragover = (e) => e.preventDefault();
+$("#drop-zone").ondragover = (e) => {
+  if (!dragged) return;
+  e.preventDefault();
+  $("#drop-zone").classList.add("drop-target");
+};
+$("#drop-zone").ondragleave = () =>
+  $("#drop-zone").classList.remove("drop-target");
 $("#drop-zone").ondrop = (e) => {
   e.preventDefault();
-  if (dragged?.tabId) run(() => drop(undefined));
+  if (dragged) run(() => moveDragged(undefined));
 };
+
+/* ---------- Actions ---------- */
+
 async function restore(options: RestoreOptions) {
   const requested = options.ids ? new Set(options.ids) : null;
-  const ids = [];
+  const ids: string[] = [];
   for (const group of state.groups) {
     if (options.groupId && options.groupId !== group.id) continue;
     for (const tab of group.tabs) {
@@ -524,6 +1185,10 @@ async function restore(options: RestoreOptions) {
     }
   }
   if (!ids.length) return;
+  if (options.ids) {
+    const rank = new Map(options.ids.map((id, i) => [id, i]));
+    ids.sort((a, b) => rank.get(a)! - rank.get(b)!);
+  }
   // Update the DOM in this click event, before any browser or storage work.
   render();
   try {
@@ -540,81 +1205,162 @@ async function restore(options: RestoreOptions) {
     render();
   }
 }
-async function remove(options: Selection) {
-  if (
-    await ask("Delete saved tabs?", {
-      description:
-        "Locked groups are protected. You can undo this from the toolbar.",
-    })
-  ) {
-    await api({ type: "delete", ...options });
-    toast("Deleted unlocked tabs. Use Undo delete to recover them.");
+async function remove(ids: string[], groupId?: string) {
+  if (!ids.length) return;
+  const wanted = new Set(ids);
+  const removable = live(state.groups)
+    .filter(({ tab, group }) => wanted.has(tab.id) && !group.locked)
+    .map(({ tab }) => tab.id);
+  if (!removable.length) {
+    toast("Unlock the selected collections to delete their tabs.");
+    return;
   }
+  await api({ type: "delete", ids: removable, groupId });
+  for (const id of removable) selected.delete(id);
+  const kept = ids.length - removable.length;
+  toast(
+    `Deleted ${plural(removable.length, "tab")}.${kept ? ` Kept ${plural(kept, "tab")} in locked collections.` : ""}`,
+    true,
+  );
 }
+// Copied links keep the order of the ids, which is the order on screen.
+async function copyLinks(ids: string[]) {
+  const byId = new Map(
+    state.groups.flatMap((g) => g.tabs.map((t) => [t.id, t] as const)),
+  );
+  const tabs = ids.flatMap((id) => byId.get(id) ?? []);
+  await navigator.clipboard.writeText(bulletList(tabs));
+  toast(`Copied ${plural(tabs.length, "link")}.`);
+}
+async function newFolder() {
+  const folder = await ask("Create a folder", {
+    value: "",
+    folderIcon: "folder",
+    description: "Folders hold collections. Choose the first one next.",
+  });
+  if (!folder?.name.trim()) return;
+  if (!state.groups.length) {
+    toast("Save or import a collection first.");
+    return;
+  }
+  const groupId = await ask("Choose a collection", {
+    options: state.groups.map((g) => [
+      g.id,
+      `${collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
+    ]),
+  });
+  if (groupId)
+    await api({
+      type: "update",
+      groupId,
+      patch: { folder: folder.name.trim(), folderIcon: folder.icon },
+    });
+}
+
 $("#search").oninput = render;
+$("#select-all").onchange = () => {
+  const ids = visible().map((e) => e.tab.id);
+  if ($("#select-all").checked) for (const id of ids) selected.add(id);
+  else for (const id of ids) selected.delete(id);
+  paintSelection();
+};
 $("#save-window").onclick = () =>
   run(async () => {
     const r = await api({ type: "capture", mode: "all" });
+    setScope("recent");
     toast(
-      `${r.count} tabs saved.${r.notClosed ? " Some source tabs stayed open because they changed." : ""}`,
+      `${plural(r.count, "tab")} saved.${r.notClosed ? " Some source tabs stayed open because they changed." : ""}`,
     );
   });
-$("#restore-all").onclick = () =>
+$("#theme-toggle").onclick = () =>
   run(() =>
-    restore({ ids: visibleGroups().flatMap((g) => g.tabs.map((t) => t.id)) }),
+    api({
+      type: "settings",
+      settings: {
+        theme: document.body.classList.contains("dark") ? "light" : "dark",
+      },
+    }),
   );
+$("#restore-all").onclick = () =>
+  run(() => restore({ ids: visible().map((e) => e.tab.id) }));
 $("#restore-selected").onclick = () =>
-  run(() => restore({ ids: [...selected] }));
-$("#delete-selected").onclick = () => run(() => remove({ ids: [...selected] }));
+  run(() => restore({ ids: orderedSelection() }));
+$("#delete-selected").onclick = () => run(() => remove([...selected]));
+// Selected tabs in on-screen order, then any hidden by the current view in
+// saved order, so copied links never depend on the order of clicks.
+function orderedSelection() {
+  const shown = visible()
+    .map((e) => e.tab.id)
+    .filter((id) => selected.has(id));
+  const seen = new Set(shown);
+  const hidden = state.groups.flatMap((g) =>
+    g.tabs.map((t) => t.id).filter((id) => selected.has(id) && !seen.has(id)),
+  );
+  return [...shown, ...hidden];
+}
+$("#copy-selected").onclick = () => run(() => copyLinks(orderedSelection()));
 $("#clear-selected").onclick = () => {
   selected.clear();
-  render();
+  paintSelection();
+  $("#select-all").focus({ preventScroll: true });
 };
 $("#move-selected").onclick = () =>
   run(async () => {
+    // Locked collections keep their tabs, as with delete; say so instead of
+    // silently clearing them from the selection.
+    const locked = new Set(
+      live(state.groups)
+        .filter(({ group }) => group.locked)
+        .map(({ tab }) => tab.id),
+    );
+    const movable = orderedSelection().filter((id) => !locked.has(id));
+    if (!movable.length) {
+      toast("Unlock the selected collections to move their tabs.");
+      return;
+    }
     const targetId = await ask("Move selected tabs", {
       options: [
-        ["", "New group"],
+        ["", "New collection"],
         ...state.groups
           .filter((g) => !g.locked)
           .map((g) => [
             g.id,
-            g.name ||
-              `${g.tabs.length} tabs · ${new Date(g.createdAt).toLocaleString()}`,
+            `${collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
           ]),
       ],
     });
     if (targetId !== null) {
-      await api({ type: "move", ids: [...selected], targetId });
-      selected.clear();
-    }
-  });
-$("#undo").onclick = () => run(() => api({ type: "undo" }));
-$("#new-folder").onclick = () =>
-  run(async () => {
-    const folder = await ask("Create a folder", {
-      value: "",
-      folderIcon: "folder",
-      description: "Choose a group to put in this folder in the next step.",
-    });
-    if (!folder?.name.trim()) return;
-    if (!state.groups.length) {
-      toast("Save or import a group first.");
-      return;
-    }
-    const groupId = await ask("Choose a group", {
-      options: state.groups.map((g) => [
-        g.id,
-        g.name || `${g.tabs.length} tabs`,
-      ]),
-    });
-    if (groupId)
-      await api({
-        type: "update",
-        groupId,
-        patch: { folder: folder.name.trim(), folderIcon: folder.icon },
+      const homeOf = (groups: TabGroup[]) =>
+        new Map(
+          groups.flatMap((g) => g.tabs.map((t) => [t.id, g.id] as const)),
+        );
+      const before = homeOf(state.groups);
+      const next = await api({
+        type: "move",
+        ids: movable,
+        targetId: targetId || undefined,
       });
+      // Count what actually moved: a collection locked elsewhere while the
+      // dialog was open keeps its tabs, and they stay selected.
+      const after = homeOf(next.groups);
+      const moved = movable.filter((id) =>
+        targetId
+          ? after.get(id) === targetId
+          : after.has(id) && after.get(id) !== before.get(id),
+      );
+      for (const id of moved) selected.delete(id);
+      const kept = selected.size;
+      toast(
+        `Moved ${plural(moved.length, "tab")}.${kept ? ` Kept ${plural(kept, "tab")} in locked collections.` : ""}`,
+      );
+    }
   });
+const undo = () =>
+  run(() =>
+    api({ type: "undo" }).then(() => toast("Restored the deleted tabs.")),
+  );
+$("#undo").onclick = undo;
+$("#status-undo").onclick = undo;
 $("#transfer-open").onclick = () => $("#transfer").showModal();
 $("#import-file").onchange = async (e) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -630,7 +1376,7 @@ $("#import").onclick = () =>
   run(async () => {
     const r = await api({ type: "import", text: $("#import-text").value });
     $("#import-result").textContent =
-      `Imported ${r.tabs} ${r.tabs === 1 ? "tab" : "tabs"} in ${r.groups} ${r.groups === 1 ? "group" : "groups"}.`;
+      `Imported ${r.tabs} ${r.tabs === 1 ? "tab" : "tabs"} in ${r.groups} ${r.groups === 1 ? "collection" : "collections"}.`;
     $("#import-text").value = "";
     $("#import-file").value = "";
   });
@@ -704,32 +1450,65 @@ $("#shortcuts").onclick = () =>
     });
   });
 document.addEventListener("keydown", (e) => {
-  if (
-    e.key === "/" &&
-    !["INPUT", "TEXTAREA", "SELECT"].includes(
-      document.activeElement?.tagName ?? "",
-    ) &&
-    !document.querySelector("dialog[open]")
-  ) {
+  const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(
+    document.activeElement?.tagName ?? "",
+  );
+  if (document.querySelector("dialog[open]")) return;
+  if (e.key === "/" && !typing) {
     e.preventDefault();
     $("#search").focus();
+  } else if (e.key === "Escape") {
+    if ($("#search").value) {
+      $("#search").value = "";
+      render();
+    } else if (selected.size) {
+      selected.clear();
+      paintSelection();
+    }
   }
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.state?.newValue) {
-    state = changes.state.newValue as State;
-    state.settings = { ...defaults, ...state.settings };
-    const ids = new Set(state.groups.flatMap((g) => g.tabs.map((t) => t.id)));
-    selected = new Set([...selected].filter((id) => ids.has(id)));
-    render();
+  if (area !== "local" || busy) return;
+  if (changes.state?.newValue) adopt(changes.state.newValue as State);
+  else if (state) {
+    const captures = Object.entries(changes)
+      .filter(
+        ([key, change]) => key.startsWith(capturePrefix) && change.newValue,
+      )
+      .map(([, change]) => change.newValue as CaptureJournal)
+      .filter(
+        (entry) => entry.base === state.revision && !groupById(entry.group.id),
+      )
+      .sort((a, b) => b.order - a.order);
+    if (captures.length)
+      adopt({
+        ...state,
+        groups: [...captures.map((entry) => entry.group), ...state.groups],
+      });
   }
 });
 matchMedia("(prefers-color-scheme: dark)").addEventListener(
   "change",
   () => state && render(),
 );
+// Relative save times ("4m", "2h") stay current while the page is open, and
+// Recent regroups into Today and Yesterday when the date changes.
+let today = new Date().toDateString();
+setInterval(() => {
+  // Record the new date only once Recent has been redrawn, so a tick that
+  // falls during an action or a drag is retried on the next one.
+  if (new Date().toDateString() !== today) {
+    if (busy || dragged) return;
+    today = new Date().toDateString();
+    render();
+    return;
+  }
+  for (const time of document.querySelectorAll<HTMLTimeElement>(
+    "time.tab-date",
+  ))
+    time.textContent = shortAgo(Date.parse(time.dateTime));
+}, 60_000);
 await refresh();
-$("#new-folder").replaceChildren(icon("plus"), node("span", "New folder"));
 const { lastError } = await chrome.storage.local.get<{ lastError?: string }>(
   "lastError",
 );
