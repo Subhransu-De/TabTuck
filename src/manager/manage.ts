@@ -116,7 +116,9 @@ async function run(fn: () => unknown | Promise<unknown>) {
   busy = true;
   try {
     await fn();
-    await refresh();
+    // Actions can change only what is on screen (search, selection), so redraw
+    // even when the saved library itself did not change.
+    if (!(await refresh())) render();
   } catch (e) {
     toast(e instanceof Error ? e.message : String(e));
   } finally {
@@ -245,6 +247,7 @@ function adopt(next: State) {
     setScope("all");
   render();
 }
+// Returns whether the library changed and the page was redrawn.
 async function refresh() {
   const next = await api({ type: "state" });
   if (
@@ -253,8 +256,9 @@ async function refresh() {
     next.groups.length === state.groups.length &&
     next.groups[0]?.id === state.groups[0]?.id
   )
-    return;
+    return false;
   adopt(next);
+  return true;
 }
 
 /* ---------- Data for the current view ---------- */
