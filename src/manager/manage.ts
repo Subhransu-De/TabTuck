@@ -1295,6 +1295,15 @@ $("#clear-selected").onclick = () => {
 };
 $("#move-selected").onclick = () =>
   run(async () => {
+    // Locked collections keep their tabs, as with delete; say so instead of
+    // silently clearing them from the selection.
+    const movable = live(state.groups)
+      .filter(({ tab, group }) => selected.has(tab.id) && !group.locked)
+      .map(({ tab }) => tab.id);
+    if (!movable.length) {
+      toast("Unlock the selected collections to move their tabs.");
+      return;
+    }
     const targetId = await ask("Move selected tabs", {
       options: [
         ["", "New collection"],
@@ -1309,10 +1318,14 @@ $("#move-selected").onclick = () =>
     if (targetId !== null) {
       await api({
         type: "move",
-        ids: [...selected],
+        ids: movable,
         targetId: targetId || undefined,
       });
-      selected.clear();
+      for (const id of movable) selected.delete(id);
+      const kept = selected.size;
+      toast(
+        `Moved ${plural(movable.length, "tab")}.${kept ? ` Kept ${plural(kept, "tab")} in locked collections.` : ""}`,
+      );
     }
   });
 const undo = () =>
