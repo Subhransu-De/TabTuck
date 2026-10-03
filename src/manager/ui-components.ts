@@ -1,4 +1,5 @@
 // Small, browser-native components. Tailwind styles compile ahead of time.
+import { icon } from "./ui-icons.ts";
 export function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   text?: string | number,
@@ -19,7 +20,8 @@ export function actionButton(
   node.addEventListener("click", onClick);
   return node;
 }
-export function websiteIcon(url: string) {
+export function websiteIcon(url: string): Element {
+  if (url.startsWith("file:")) return icon("file", "site-mark file-mark");
   const node = element("img", undefined, "site-mark");
   node.alt = "";
   node.loading = "lazy";
@@ -32,16 +34,5 @@ export function websiteIcon(url: string) {
     node.onerror = null;
     node.src = "../icons/site.svg";
   };
-  return node;
-}
-const addedDateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-export function addedTime(timestamp: number) {
-  const date = new Date(timestamp);
-  const node = element("time", addedDateFormatter.format(date), "tab-date");
-  node.dateTime = date.toISOString();
-  node.title = `Added to TabTuck: ${date.toLocaleString()}`;
   return node;
 }

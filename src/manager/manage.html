@@ -8,62 +8,114 @@
     <link rel="icon" href="../icons/48.png" />
   </head>
   <body>
-    <aside aria-label="Library sidebar">
-      <a class="brand" href="manage.html"
-        ><img src="../icons/48.png" alt="" />TabTuck</a
-      >
-      <nav id="navigation" aria-label="Saved tabs"></nav>
-      <button id="new-folder" class="subtle">+ New folder</button>
-      <div class="aside-bottom">
-        <button id="transfer-open">Import / Export</button
-        ><button id="settings-open">Options</button>
-      </div>
-    </aside>
-    <main>
-      <header>
-        <div>
-          <h1 id="heading">All tabs</h1>
+    <div class="app" id="app">
+      <svg id="vine" class="vine" aria-hidden="true"></svg>
+      <aside class="col col-1" id="col-1" aria-label="Library">
+        <div class="head brand-head">
+          <div class="brand">
+            <img src="../icons/48.png" alt="" />
+            <span class="brand-name">TabTuck</span>
+            <button id="theme-toggle" class="icon-button" type="button">
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
           <p id="summary">Loading your library…</p>
         </div>
-        <button class="primary" id="save-window">Save this window</button>
-      </header>
-      <div class="toolbar">
-        <label class="search"
-          ><svg
-            class="search-icon"
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
+        <button id="save-window" class="tuck" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span>Save this window</span>
+        </button>
+        <nav id="navigation" class="list" aria-label="Saved tabs"></nav>
+        <div class="foot foot-1">
+          <div class="links">
+            <button id="transfer-open" type="button">Import / Export</button
+            ><button id="settings-open" type="button">Options</button>
+          </div>
+        </div>
+      </aside>
+      <section class="col col-2" id="col-2" aria-labelledby="scope-title">
+        <header class="head" id="scope-head"></header>
+        <nav class="list" id="facets" aria-label="Sites and save times"></nav>
+        <div class="foot">
+          <div id="drop-zone">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <span>Drop tabs here to start a new collection</span>
+          </div>
+        </div>
+      </section>
+      <main class="col col-3" id="col-3">
+        <header class="head head-3">
+          <div class="title-block">
+            <h1 id="heading">Recent</h1>
+            <p id="subheading"></p>
+          </div>
+          <label class="search">
+            <svg
+              class="search-icon"
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 4.5 4.5" />
+            </svg>
+            <input
+              id="search"
+              type="search"
+              placeholder="Search saved tabs"
+              aria-label="Search saved tabs"
+              autocomplete="off"
+            /><kbd>/</kbd>
+          </label>
+        </header>
+        <div class="list-head" id="list-head">
+          <label class="select-all"
+            ><input type="checkbox" id="select-all" /><span
+              >Select all</span
+            ></label
           >
-            <circle cx="10.5" cy="10.5" r="6.5" />
-            <path d="m16 16 4.5 4.5" /></svg
-          ><input
-            id="search"
-            type="search"
-            placeholder="Search saved tabs"
-            aria-label="Search saved tabs"
-          /><kbd>/</kbd></label
-        ><button id="restore-all">Restore all</button
-        ><button id="undo">Undo delete</button>
-      </div>
-      <div id="selection" hidden>
-        <span id="selected-count"></span
-        ><button id="restore-selected">Restore selected</button
-        ><button id="move-selected">Move selected</button
-        ><button id="delete-selected">Delete selected</button
-        ><button id="clear-selected">Clear</button>
-      </div>
-      <div id="groups"></div>
-      <div id="drop-zone">Drop tabs here to create a new group</div>
-      <footer>
-        <span>Save current tab <kbd>Alt</kbd> + <kbd>C</kbd></span
-        ><span>Show TabTuck <kbd>Alt</kbd> + <kbd>Q</kbd></span
-        ><button id="shortcuts">Change shortcuts</button>
-      </footer>
-    </main>
-    <div id="status" role="status" hidden></div>
+          <span id="list-meta"></span>
+          <button id="restore-all" type="button">Restore all</button
+          ><button id="undo" type="button">Undo delete</button>
+        </div>
+        <div class="list" id="groups"></div>
+        <div class="foot strip">
+          <div id="selection" hidden>
+            <span id="selected-count"></span>
+            <button id="restore-selected" class="primary" type="button">
+              Restore</button
+            ><button id="move-selected" type="button">Move</button
+            ><button id="copy-selected" type="button">Copy links</button
+            ><button id="delete-selected" class="danger" type="button">
+              Delete</button
+            ><button id="clear-selected" type="button">Clear</button>
+          </div>
+          <p id="hint">
+            Click a title to restore it here. <kbd>Ctrl</kbd>-click keeps a copy
+            saved. Drag rows onto a collection to move them.
+          </p>
+          <div id="status" role="status" hidden>
+            <span id="status-text"></span
+            ><button id="status-undo" type="button" hidden>Undo</button>
+          </div>
+        </div>
+      </main>
+    </div>
     <dialog id="transfer" aria-labelledby="transfer-title">
       <form method="dialog">
         <button class="close" aria-label="Close">×</button>
@@ -71,7 +123,7 @@
         <textarea
           id="import-text"
           aria-label="Import text"
-          placeholder="https://example.com/ | Example Domain"
+          placeholder="https://example.com/ | Example Domain&#10;https://developer.mozilla.org/ | MDN Web Docs&#10;&#10;https://news.ycombinator.com/ | Hacker News"
         ></textarea
         ><input
           type="file"
@@ -99,15 +151,20 @@
         ><label class="option"
           ><input type="checkbox" data-setting="showAfterSave" /> Show TabTuck
           after saving</label
-        ><label class="option"
-          >Appearance
-          <select data-setting="theme">
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="system">System</option>
-          </select></label
         >
-        <p id="command-status"></p>
+        <div class="shortcuts-row">
+          <p id="command-status"></p>
+          <button id="shortcuts" type="button">Change shortcuts</button>
+        </div>
+        <p class="privacy-note">
+          Saved tabs stay on this device and are never sent anywhere.
+          <a
+            href="https://github.com/Subhransu-De/TabTuck/blob/main/wiki/privacy.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Privacy policy</a
+          >
+        </p>
         <div class="dialog-actions">
           <button type="button" id="settings-save" class="primary">
             Save options

@@ -5,8 +5,17 @@ import type {
   Message,
   CaptureMode,
   RestoreOptions,
+  CaptureInfo,
+  CaptureJournal,
 } from "../shared/types.ts";
-import { defaults, uid, group, safeUrl, parseImport } from "../shared/model.ts";
+import {
+  defaults,
+  uid,
+  group,
+  safeUrl,
+  parseImport,
+  capturePrefix,
+} from "../shared/model.ts";
 import { folderIcons } from "../shared/folder-icons.ts";
 let queue: Promise<unknown> = Promise.resolve();
 export function serial<T>(fn: () => T | Promise<T>) {
@@ -14,8 +23,11 @@ export function serial<T>(fn: () => T | Promise<T>) {
   queue = task.catch(() => {});
   return task;
 }
-export async function read(): Promise<State> {
-  const { state } = await chrome.storage.local.get<{ state?: State }>("state");
+let cached: State | undefined;
+let captureOrder = 0;
+const captureKeys = new Set<string>();
+let urlIndex: { state: State; urls: Set<string> } | undefined;
+function normalize(state?: State): State {
   if (state) {
     for (const g of [
       ...state.groups,
@@ -23,13 +35,158 @@ export async function read(): Promise<State> {
     ]) {
       for (const tab of g.tabs) tab.addedAt ??= g.createdAt;
     }
+    // Version 1 stored the old "light" default whether or not it was chosen.
+    if ((state.version ?? 1) < 2) {
+      if (state.settings?.theme === "light") state.settings.theme = "system";
+      state.version = 2;
+    }
   }
   return (
-    state || { version: 1, groups: [], settings: { ...defaults }, trash: [] }
+    state || { version: 2, groups: [], settings: { ...defaults }, trash: [] }
   );
 }
+export async function read(): Promise<State> {
+  if (cached && chrome.storage.onChanged) return cached;
+  const stored = await chrome.storage.local.get<
+    { state?: State; captureInfo?: CaptureInfo } & Record<string, unknown>
+  >(null);
+  const state = normalize(stored.state);
+  captureOrder =
+    stored.captureInfo?.base === state.revision
+      ? (stored.captureInfo?.order ?? 0)
+      : 0;
+  captureKeys.clear();
+  const captures: CaptureJournal[] = [];
+  for (const [key, value] of Object.entries(stored)) {
+    if (!key.startsWith(capturePrefix)) continue;
+    captureKeys.add(key);
+    const entry = value as CaptureJournal;
+    if (entry.base !== state.revision) continue;
+    captures.push(entry);
+    captureOrder = Math.max(captureOrder, entry.order);
+  }
+  const existing = new Set(state.groups.map((g) => g.id));
+  state.groups.unshift(
+    ...captures
+      .sort((a, b) => b.order - a.order)
+      .map((entry) => entry.group)
+      .filter((g) => !existing.has(g.id)),
+  );
+  cached = state;
+  urlIndex = undefined;
+  return state;
+}
 async function write(state: State) {
-  await chrome.storage.local.set({ state });
+  state.revision = uid();
+  const captureInfo: CaptureInfo = {
+    base: state.revision,
+    order: 0,
+    count: state.groups.reduce((n, g) => n + g.tabs.length, 0),
+    settings: state.settings,
+  };
+  const cleanup = [...captureKeys];
+  urlIndex = undefined;
+  try {
+    await chrome.storage.local.set({ state, captureInfo });
+  } catch (error) {
+    cached = undefined;
+    throw error;
+  }
+  cached = state;
+  captureOrder = 0;
+  if (cleanup.length) {
+    await chrome.storage.local.remove(cleanup).catch(() => {});
+    for (const key of cleanup) captureKeys.delete(key);
+  }
+}
+async function appendCapture(info: CaptureInfo, saved?: TabGroup) {
+  const next: CaptureInfo = {
+    ...info,
+    order: info.order + (saved ? 1 : 0),
+    count: info.count + (saved?.tabs.length ?? 0),
+  };
+  const key = saved && `${capturePrefix}${saved.id}`;
+  try {
+    await chrome.storage.local.set({
+      captureInfo: next,
+      ...(key && saved
+        ? { [key]: { base: next.base, order: next.order, group: saved } }
+        : {}),
+    });
+  } catch (error) {
+    cached = undefined;
+    urlIndex = undefined;
+    throw error;
+  }
+  captureOrder = next.order;
+  if (key && saved) {
+    captureKeys.add(key);
+    if (
+      cached?.revision === next.base &&
+      cached &&
+      !cached.groups.some((g) => g.id === saved.id)
+    ) {
+      cached.groups.unshift(saved);
+      urlIndex = undefined;
+    }
+  }
+}
+chrome.storage.onChanged?.addListener((changes, area) => {
+  if (area !== "local") return;
+  if (changes.state) {
+    const next = changes.state.newValue as State | undefined;
+    if (!next) {
+      cached = undefined;
+      captureOrder = 0;
+      captureKeys.clear();
+      urlIndex = undefined;
+    } else if (
+      !cached ||
+      !next.revision ||
+      cached.revision !== next.revision ||
+      !changes.captureInfo
+    ) {
+      cached = normalize(next);
+      captureOrder = 0;
+      urlIndex = undefined;
+    }
+    if (next && !changes.captureInfo) {
+      const obsolete = [...captureKeys, "captureInfo"];
+      serial(() => chrome.storage.local.remove(obsolete)).catch(() => {});
+    }
+  }
+  for (const [key, change] of Object.entries(changes)) {
+    if (!key.startsWith(capturePrefix)) continue;
+    if (!change.newValue) {
+      captureKeys.delete(key);
+      continue;
+    }
+    captureKeys.add(key);
+    const entry = change.newValue as CaptureJournal;
+    if (!cached || entry.base !== cached.revision) continue;
+    captureOrder = Math.max(captureOrder, entry.order);
+    if (!cached.groups.some((g) => g.id === entry.group.id)) {
+      cached.groups.unshift(entry.group);
+      urlIndex = undefined;
+    }
+  }
+  const info = changes.captureInfo?.newValue as CaptureInfo | undefined;
+  if (info && cached && info.base === cached.revision)
+    captureOrder = info.order;
+});
+async function captureState() {
+  const { captureInfo } = await chrome.storage.local.get<{
+    captureInfo?: CaptureInfo;
+  }>("captureInfo");
+  if (
+    captureInfo &&
+    captureInfo.count >= 1000 &&
+    !captureInfo.settings.deduplicate &&
+    (!cached || captureInfo.base === cached.revision)
+  )
+    return { settings: captureInfo.settings, info: captureInfo };
+  const state = await read();
+  return { settings: state.settings, state };
 }
 export async function show(windowId: number) {
   const url = chrome.runtime.getURL("manager/manage.html");
@@ -44,8 +201,10 @@ export async function capture(
   windowId: number,
   referenceId?: number,
 ) {
-  const state = await read();
-  const tabs = await chrome.tabs.query({ windowId });
+  const [snapshot, tabs] = await Promise.all([
+    captureState(),
+    chrome.tabs.query({ windowId }),
+  ]);
   const active =
     tabs.find((t) => t.id === referenceId) || tabs.find((t) => t.active);
   const chosen = tabs.filter(
@@ -69,11 +228,14 @@ export async function capture(
     await show(windowId);
     return { count: 0 };
   }
-  const seen = new Set(
-    state.settings.deduplicate
-      ? state.groups.flatMap((g) => g.tabs.map((t) => t.url))
-      : [],
-  );
+  const { settings } = snapshot;
+  const state = snapshot.state;
+  if (settings.deduplicate && state && urlIndex?.state !== state)
+    urlIndex = {
+      state,
+      urls: new Set(state.groups.flatMap((g) => g.tabs.map((t) => t.url))),
+    };
+  const seen = settings.deduplicate ? urlIndex!.urls : new Set<string>();
   const saved: SavedTab[] = [];
   for (const tab of chosen) {
     const url = safeUrl(tab.url || tab.pendingUrl);
@@ -84,40 +246,56 @@ export async function capture(
         title: tab.title || url,
         addedAt: Date.now(),
       });
-      if (state.settings.deduplicate) seen.add(url);
+      if (settings.deduplicate) seen.add(url);
     }
   }
-  if (saved.length) state.groups.unshift(group(saved));
-  await write(state); // Durability precedes closing any source tab.
+  const collection = saved.length ? group(saved) : undefined;
+  const count = state?.groups.reduce((n, g) => n + g.tabs.length, 0) ?? 0;
+  if (collection && state) state.groups.unshift(collection);
+  if (snapshot.info) await appendCapture(snapshot.info, collection);
+  else if (state && count >= 1000)
+    await appendCapture(
+      {
+        base: state.revision,
+        order: captureOrder,
+        count,
+        settings,
+      },
+      collection,
+    );
+  else await write(state!); // Durability precedes closing any source tab.
   // A manager tab also keeps the original window alive when its last tab is saved.
-  if (state.settings.showAfterSave || chosen.length === tabs.length)
+  if (settings.showAfterSave || chosen.length === tabs.length)
     await show(windowId);
-  let notClosed = 0;
-  for (const tab of chosen) {
-    try {
-      const latest = await chrome.tabs.get(tab.id!);
-      if (
-        !latest.pinned &&
-        (latest.groupId === undefined || latest.groupId === -1) &&
-        (latest.url || latest.pendingUrl) === (tab.url || tab.pendingUrl)
-      )
-        await chrome.tabs.remove(tab.id!);
-      else notClosed++;
-    } catch {
-      notClosed++;
-    }
-  }
-  return { count: saved.length, notClosed };
+  const closed = await Promise.all(
+    chosen.map(async (tab) => {
+      try {
+        const latest = await chrome.tabs.get(tab.id!);
+        if (
+          !latest.pinned &&
+          (latest.groupId === undefined || latest.groupId === -1) &&
+          (latest.pendingUrl || latest.url) === (tab.url || tab.pendingUrl)
+        )
+          await chrome.tabs.remove(tab.id!);
+        else return false;
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return { count: saved.length, notClosed: closed.filter((ok) => !ok).length };
 }
 export async function restore(message: RestoreOptions, windowId: number) {
   const state = await read();
   await chrome.windows.get(windowId); // Never fall back to a new or unrelated window.
   let count = 0;
   const failed = [];
+  const wanted = message.ids && new Set(message.ids);
   for (const g of state.groups) {
     if (message.groupId && message.groupId !== g.id) continue;
     for (const tab of [...g.tabs]) {
-      if (message.ids && !message.ids.includes(tab.id)) continue;
+      if (wanted && !wanted.has(tab.id)) continue;
       try {
         if (!safeUrl(tab.url)) throw new Error("Unsupported URL");
         await chrome.tabs.create({ windowId, url: tab.url, active: false });
@@ -128,12 +306,17 @@ export async function restore(message: RestoreOptions, windowId: number) {
       count++;
       if (!g.locked && !state.settings.keepRestored && !message.keep) {
         g.tabs = g.tabs.filter((t) => t.id !== tab.id);
+        if (!g.tabs.length)
+          state.groups = state.groups.filter((g) => g.tabs.length);
         await write(state); // Checkpoint each successful restore; failed items stay saved.
       }
     }
   }
-  state.groups = state.groups.filter((g) => g.tabs.length);
-  await write(state);
+  const groups = state.groups.filter((g) => g.tabs.length);
+  if (groups.length !== state.groups.length) {
+    state.groups = groups;
+    await write(state);
+  }
   return { count, failed };
 }
 export async function dispatch(
@@ -179,11 +362,12 @@ export async function dispatch(
     }
   } else if (m.type === "delete") {
     const removed: TabGroup[] = [];
+    const wanted = m.ids && new Set(m.ids);
     for (const item of state.groups) {
       if (item.locked || (m.groupId && item.id !== m.groupId)) continue;
-      const tabs = item.tabs.filter((t) => !m.ids || m.ids.includes(t.id));
+      const tabs = item.tabs.filter((t) => !wanted || wanted.has(t.id));
       if (tabs.length) removed.push({ ...item, tabs });
-      item.tabs = item.tabs.filter((t) => !tabs.includes(t));
+      item.tabs = item.tabs.filter((t) => wanted && !wanted.has(t.id));
     }
     state.groups = state.groups.filter((g) => g.tabs.length);
     if (removed.length)
@@ -196,23 +380,21 @@ export async function dispatch(
     if (entry)
       for (const item of entry.groups) {
         const existing = state.groups.find((g) => g.id === item.id);
-        if (existing)
-          existing.tabs.push(
-            ...item.tabs.filter(
-              (t) => !existing.tabs.some((e) => e.id === t.id),
-            ),
-          );
-        else state.groups.unshift(item);
+        if (existing) {
+          const ids = new Set(existing.tabs.map((t) => t.id));
+          existing.tabs.push(...item.tabs.filter((t) => !ids.has(t.id)));
+        } else state.groups.unshift(item);
       }
   } else if (m.type === "move") {
     const target = state.groups.find((g) => g.id === m.targetId);
     if (target?.locked) throw new Error("Unlock the destination group first.");
     const moved: SavedTab[] = [];
+    const wanted = new Set(m.ids);
     for (const item of state.groups) {
       if (item.locked || item.id === target?.id) continue;
-      const selected = item.tabs.filter((t) => m.ids.includes(t.id));
+      const selected = item.tabs.filter((t) => wanted.has(t.id));
       moved.push(...selected);
-      item.tabs = item.tabs.filter((t) => !m.ids.includes(t.id));
+      item.tabs = item.tabs.filter((t) => !wanted.has(t.id));
     }
     if (moved.length) {
       if (target) {

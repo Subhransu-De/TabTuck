@@ -105,19 +105,20 @@ try {
   await page.waitForFunction(
     () =>
       document.querySelector("#import-result")?.textContent ===
-      "Imported 3 tabs in 2 groups.",
+      "Imported 3 tabs in 2 collections.",
   );
   await page.locator("#transfer .close").click();
   await page.locator("#search").fill("Beta");
   assert.equal(await page.locator(".tab-row").count(), 1);
   await page.locator("#search").fill("");
+  // The Alpha and Beta collection opens its details in the second column.
   const alphaGroup = page
-    .locator(".group")
-    .filter({ has: page.getByRole("link", { name: "Alpha", exact: true }) });
-  await alphaGroup.getByRole("button", { name: "Lock", exact: true }).click();
-  await alphaGroup
-    .getByRole("button", { name: "Unlock", exact: true })
-    .waitFor();
+    .locator("#navigation .row.collection")
+    .filter({ has: page.locator(".count", { hasText: /^2$/ }) });
+  await alphaGroup.click();
+  const details = page.locator("#scope-head");
+  await details.getByRole("button", { name: "Lock", exact: true }).click();
+  await details.getByRole("button", { name: "Unlock", exact: true }).waitFor();
   const lockedId = await alphaGroup.getAttribute("data-group");
   assert.ok(lockedId);
   await invoke({ type: "restore", groupId: lockedId });
@@ -132,22 +133,20 @@ try {
       .tabs.length,
     2,
   );
-  await alphaGroup.getByRole("button", { name: "Unlock", exact: true }).click();
-  await alphaGroup.getByRole("button", { name: "Lock", exact: true }).waitFor();
-  await alphaGroup
-    .getByRole("button", { name: "Select all", exact: true })
-    .click();
+  await details.getByRole("button", { name: "Unlock", exact: true }).click();
+  await details.getByRole("button", { name: "Lock", exact: true }).waitFor();
+  await page.locator("#select-all").check();
   await page.locator("#restore-selected").click();
   await page.waitForFunction(
     () => document.querySelectorAll(".tab-row").length === 1,
   );
   state = await invoke({ type: "state" });
   assert.equal(state.groups[0].tabs[0].title, "Gamma");
-  await page
-    .locator(".group")
+  // Deleting is immediate; the toast and the toolbar both offer Undo.
+  await page.locator("#navigation .row.collection").first().click();
+  await details
     .getByRole("button", { name: "Delete all", exact: true })
     .click();
-  await page.locator("#prompt-form button[type=submit]").click();
   await page.waitForFunction(
     () => document.querySelectorAll(".tab-row").length === 0,
   );
@@ -160,8 +159,8 @@ try {
     () => document.querySelectorAll(".tab-row").length === 1,
   );
   await page.locator("#settings-open").click();
-  await page.locator("[data-setting=theme]").selectOption("dark");
   await page.locator("#settings-save").click();
+  await page.locator("#theme-toggle").click();
   await page.waitForFunction(() => document.body.classList.contains("dark"));
   await page.locator("#transfer-open").click();
   const downloadEvent = page.waitForEvent("download");
