@@ -35,14 +35,9 @@ function normalize(state?: State): State {
     ]) {
       for (const tab of g.tabs) tab.addedAt ??= g.createdAt;
     }
-    // Version 1 stored the old "light" default whether or not it was chosen.
-    if ((state.version ?? 1) < 2) {
-      if (state.settings?.theme === "light") state.settings.theme = "system";
-      state.version = 2;
-    }
   }
   return (
-    state || { version: 2, groups: [], settings: { ...defaults }, trash: [] }
+    state || { version: 1, groups: [], settings: { ...defaults }, trash: [] }
   );
 }
 export async function read(): Promise<State> {
