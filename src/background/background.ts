@@ -94,9 +94,14 @@ async function write(state: State) {
   }
   cached = state;
   captureOrder = 0;
+  // Keep tracking records whose removal failed so the next write retries it.
   if (cleanup.length) {
-    await chrome.storage.local.remove(cleanup).catch(() => {});
-    for (const key of cleanup) captureKeys.delete(key);
+    try {
+      await chrome.storage.local.remove(cleanup);
+      for (const key of cleanup) captureKeys.delete(key);
+    } catch {
+      // Stale records are ignored on read and removed by a later write.
+    }
   }
 }
 async function appendCapture(info: CaptureInfo, saved?: TabGroup) {
@@ -390,15 +395,22 @@ export async function dispatch(
     if (target?.locked) throw new Error("Unlock the destination group first.");
     const moved: SavedTab[] = [];
     const wanted = new Set(m.ids);
+    // Tabs already in the target move too, so a multi-row drop reorders them.
+    // If the drop point is itself moving, insert before the next tab that stays.
+    let anchor = m.beforeId;
+    if (target && anchor && wanted.has(anchor)) {
+      const from = target.tabs.findIndex((t) => t.id === anchor);
+      anchor = target.tabs.slice(from).find((t) => !wanted.has(t.id))?.id;
+    }
     for (const item of state.groups) {
-      if (item.locked || item.id === target?.id) continue;
+      if (item.locked) continue;
       const selected = item.tabs.filter((t) => wanted.has(t.id));
       moved.push(...selected);
       item.tabs = item.tabs.filter((t) => !wanted.has(t.id));
     }
     if (moved.length) {
       if (target) {
-        const index = target.tabs.findIndex((t) => t.id === m.beforeId);
+        const index = target.tabs.findIndex((t) => t.id === anchor);
         target.tabs.splice(index < 0 ? target.tabs.length : index, 0, ...moved);
       } else state.groups.unshift(group(moved, m.name || ""));
     }

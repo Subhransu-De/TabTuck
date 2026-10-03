@@ -153,6 +153,34 @@ test("manual link order supports up, down, self-drop and cross-group insertion",
   expect(order()).toEqual(["1", "3"]);
   expect(stored.groups[1].tabs.map((t) => t.id)).toEqual(["2", "4"]);
 });
+test("several selected links can be dropped elsewhere in their own group", async () => {
+  stored.groups = [
+    group(
+      ["a", "b", "c", "d", "e"].map((id) => ({
+        id,
+        title: id,
+        url: `https://example.com/${id}`,
+      })),
+    ),
+  ];
+  const groupId = stored.groups[0].id;
+  const order = () => stored.groups[0].tabs.map((t) => t.id);
+  await dispatch({
+    type: "move",
+    ids: ["a", "b"],
+    targetId: groupId,
+    beforeId: "e",
+  });
+  expect(order()).toEqual(["c", "d", "a", "b", "e"]);
+  // Dropping onto one of the moved rows keeps the selection together there.
+  await dispatch({
+    type: "move",
+    ids: ["c", "a"],
+    targetId: groupId,
+    beforeId: "a",
+  });
+  expect(order()).toEqual(["d", "c", "a", "b", "e"]);
+});
 test("storage failure never closes original tabs", async () => {
   failWrite = true;
   await expect(capture("all", 7)).rejects.toThrow("Disk full");

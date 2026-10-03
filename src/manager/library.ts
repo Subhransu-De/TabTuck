@@ -15,8 +15,6 @@ export interface SiteCount {
 }
 export type Bucket = "all" | "today" | "yesterday" | "week" | "earlier";
 
-const DAY = 86_400_000;
-
 export function hostOf(url: string) {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -126,19 +124,21 @@ export function collectionLabel(group: TabGroup) {
   return names.join(", ") + (rest > 0 ? ` +${rest}` : "");
 }
 
-function startOfDay(now: number) {
+// Calendar days, not 24-hour blocks, so daylight-saving changes do not move
+// tabs saved near midnight into the wrong group.
+function startOfDay(now: number, daysAgo = 0) {
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - daysAgo);
   return d.getTime();
 }
 export function bucketOf(
   time: number,
   now = Date.now(),
 ): Exclude<Bucket, "all"> {
-  const today = startOfDay(now);
-  if (time >= today) return "today";
-  if (time >= today - DAY) return "yesterday";
-  if (time >= today - 6 * DAY) return "week";
+  if (time >= startOfDay(now)) return "today";
+  if (time >= startOfDay(now, 1)) return "yesterday";
+  if (time >= startOfDay(now, 6)) return "week";
   return "earlier";
 }
 export const bucketNames: Record<Bucket, string> = {

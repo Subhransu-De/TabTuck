@@ -1212,11 +1212,12 @@ async function remove(ids: string[], groupId?: string) {
     true,
   );
 }
+// Copied links keep the order of the ids, which is the order on screen.
 async function copyLinks(ids: string[]) {
-  const wanted = new Set(ids);
-  const tabs = state.groups.flatMap((g) =>
-    g.tabs.filter((t) => wanted.has(t.id)),
+  const byId = new Map(
+    state.groups.flatMap((g) => g.tabs.map((t) => [t.id, t] as const)),
   );
+  const tabs = ids.flatMap((id) => byId.get(id) ?? []);
   await navigator.clipboard.writeText(bulletList(tabs));
   toast(`Copied ${plural(tabs.length, "link")}.`);
 }
