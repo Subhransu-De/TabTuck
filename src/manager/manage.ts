@@ -1275,7 +1275,19 @@ $("#restore-all").onclick = () =>
 $("#restore-selected").onclick = () =>
   run(() => restore({ ids: [...selected] }));
 $("#delete-selected").onclick = () => run(() => remove([...selected]));
-$("#copy-selected").onclick = () => run(() => copyLinks([...selected]));
+// Selected tabs in on-screen order, then any hidden by the current view in
+// saved order, so copied links never depend on the order of clicks.
+function orderedSelection() {
+  const shown = visible()
+    .map((e) => e.tab.id)
+    .filter((id) => selected.has(id));
+  const seen = new Set(shown);
+  const hidden = state.groups.flatMap((g) =>
+    g.tabs.map((t) => t.id).filter((id) => selected.has(id) && !seen.has(id)),
+  );
+  return [...shown, ...hidden];
+}
+$("#copy-selected").onclick = () => run(() => copyLinks(orderedSelection()));
 $("#clear-selected").onclick = () => {
   selected.clear();
   paintSelection();
