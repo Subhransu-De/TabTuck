@@ -340,10 +340,12 @@ test("restore and move follow the order the tabs were given in", async () => {
   await dispatch({ type: "move", ids: ["3", "2"] });
   expect(stored.groups[0].tabs.map((t) => t.id)).toEqual(["3", "2"]);
 });
-test("a tab already loading when saved is still closed", async () => {
+test("a tab navigating elsewhere when saved stays open", async () => {
+  // Only the committed address is saved, so closing would lose the new page.
   tabs[0] = { ...tabs[0], pendingUrl: "https://example.com/next" };
-  await capture("current", 7, 1);
-  expect(removed).toEqual([1]);
+  const result = await capture("current", 7, 1);
+  expect(removed).toEqual([]);
+  expect(result.notClosed).toBe(1);
 });
 test("save closes a tab that finished loading meanwhile, not one that navigated away", async () => {
   const get = chrome.tabs.get;
@@ -372,6 +374,12 @@ test("save closes a tab that finished loading meanwhile, not one that navigated 
     const result = await capture("current", 7, 1);
     expect(removed).toEqual([1]);
     expect(result.notClosed).toBe(1);
+    // Saved at A while heading to B; B finishing must not close the tab.
+    tabs = [{ ...tabs[0], pendingUrl: "https://example.com/b" }];
+    now({ url: "https://example.com/b", pendingUrl: undefined });
+    const unsaved = await capture("current", 7, 1);
+    expect(removed).toEqual([1]);
+    expect(unsaved.notClosed).toBe(1);
   } finally {
     chrome.tabs.get = get;
   }

@@ -274,12 +274,10 @@ export async function capture(
         if (
           !latest.pinned &&
           (latest.groupId === undefined || latest.groupId === -1) &&
-          // Close only if the tab is still heading to an address known when it
-          // was saved: still loading, or finished loading that page. A new
-          // navigation started meanwhile keeps the tab open.
-          [tab.url, tab.pendingUrl]
-            .filter(Boolean)
-            .includes(latest.pendingUrl || latest.url)
+          // Close only if the tab still shows, or is still loading, exactly the
+          // address that was saved. A tab heading anywhere else stays open, so
+          // a page that was never saved is never lost.
+          (latest.pendingUrl || latest.url) === (tab.url || tab.pendingUrl)
         )
           await chrome.tabs.remove(tab.id!);
         else return false;

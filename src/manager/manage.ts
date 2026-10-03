@@ -462,7 +462,10 @@ function buildCollectionRow(g: TabGroup, inFolder: boolean) {
   const q = query();
   if (q && !live([g]).some((e) => matches(e, q))) row.classList.add("dim");
   row.addEventListener("dragover", (e) => {
-    if (!dragged || g.locked || dragged.groupId === g.id) return;
+    // A selection can span collections; only a drop that moves nothing is refused.
+    if (!dragged || g.locked) return;
+    const own = new Set(g.tabs.map((t) => t.id));
+    if (dragged.ids.every((id) => own.has(id))) return;
     e.preventDefault();
     e.dataTransfer!.dropEffect = "move";
     row.classList.add("drop-target");
@@ -1488,9 +1491,12 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener(
 // Recent regroups into Today and Yesterday when the date changes.
 let today = new Date().toDateString();
 setInterval(() => {
+  // Record the new date only once Recent has been redrawn, so a tick that
+  // falls during an action or a drag is retried on the next one.
   if (new Date().toDateString() !== today) {
+    if (busy || dragged) return;
     today = new Date().toDateString();
-    if (!busy && !dragged) render();
+    render();
     return;
   }
   for (const time of document.querySelectorAll<HTMLTimeElement>(
