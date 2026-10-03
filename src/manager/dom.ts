@@ -46,6 +46,9 @@ interface ManagerElements {
   "#settings-title": HTMLElement;
   "#command-status": HTMLElement;
   "#settings-save": HTMLButtonElement;
+  "#consent": HTMLDialogElement;
+  "#consent-title": HTMLElement;
+  "#consent-agree": HTMLButtonElement;
   "#prompt": HTMLDialogElement;
   "#prompt-form": HTMLFormElement;
   "#prompt-title": HTMLElement;

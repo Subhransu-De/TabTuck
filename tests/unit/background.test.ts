@@ -84,7 +84,13 @@ globalThis.chrome = chromeMock as unknown as typeof chrome;
 const { capture, restore, dispatch, serial } =
   await import("../../src/background/background.ts");
 beforeEach(() => {
-  stored = { version: 1, groups: [], settings: { ...defaults }, trash: [] };
+  // Most tests start after the user has agreed to the data notice.
+  stored = {
+    version: 1,
+    groups: [],
+    settings: { ...defaults, dataNotice: true },
+    trash: [],
+  };
   tabs = [
     {
       id: 1,
@@ -180,6 +186,20 @@ test("several selected links can be dropped elsewhere in their own group", async
     beforeId: "a",
   });
   expect(order()).toEqual(["d", "c", "a", "b", "e"]);
+});
+test("nothing is saved until the user agrees to the data notice", async () => {
+  stored.settings.dataNotice = false;
+  expect(await capture("current", 7, 1)).toEqual({
+    count: 0,
+    needsConsent: true,
+  });
+  expect(stored.groups).toEqual([]);
+  expect(removed).toEqual([]);
+  expect(created.some((t) => t.url?.endsWith("manager/manage.html"))).toBe(
+    true,
+  );
+  await dispatch({ type: "settings", settings: { dataNotice: true } });
+  expect((await capture("current", 7, 1)).count).toBe(1);
 });
 test("storage failure never closes original tabs", async () => {
   failWrite = true;

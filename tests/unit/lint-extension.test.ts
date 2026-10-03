@@ -6,7 +6,7 @@ test("Chromium exceptions never hide other invalid permissions or source errors"
     isFirefoxOnly({
       file: "manifest.json",
       code: "MANIFEST_PERMISSIONS",
-      message: '/permissions: Invalid permissions "favicon" at 4.',
+      message: '/permissions: Invalid permissions "favicon" at 3.',
     }),
   ).toBe(true);
   expect(

@@ -3,13 +3,7 @@
   "name": "TabTuck",
   "version": "1.1.0",
   "description": "Save, organize and restore tab groups in the same browser window.",
-  "permissions": [
-    "tabs",
-    "storage",
-    "unlimitedStorage",
-    "contextMenus",
-    "favicon"
-  ],
+  "permissions": ["tabs", "storage", "contextMenus", "favicon"],
   "background": {
     "service_worker": "background/background.js",
     "type": "module"

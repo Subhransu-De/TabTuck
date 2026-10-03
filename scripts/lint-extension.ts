@@ -45,7 +45,10 @@ export function isFirefoxOnly(issue: Issue) {
     return true;
   return (
     issue.code === "MANIFEST_PERMISSIONS" &&
-    issue.message === '/permissions: Invalid permissions "favicon" at 4.'
+    // The position changes whenever the permission list does.
+    /^\/permissions: Invalid permissions "favicon" at \d+\.$/.test(
+      issue.message ?? "",
+    )
   );
 }
 
