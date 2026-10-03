@@ -205,6 +205,12 @@ export async function capture(
     captureState(),
     chrome.tabs.query({ windowId }),
   ]);
+  // Chrome Web Store policy: no tab data is read into storage until the user
+  // agrees to the in-product notice, which the manager page shows.
+  if (!snapshot.settings.dataNotice) {
+    await show(windowId);
+    return { count: 0, needsConsent: true };
+  }
   const active =
     tabs.find((t) => t.id === referenceId) || tabs.find((t) => t.active);
   const chosen = tabs.filter(
@@ -345,7 +351,12 @@ export async function dispatch(
   const state = await read();
   const g = state.groups.find((g) => g.id === m.groupId);
   if (m.type === "settings") {
-    for (const key of ["keepRestored", "deduplicate", "showAfterSave"] as const)
+    for (const key of [
+      "keepRestored",
+      "deduplicate",
+      "showAfterSave",
+      "dataNotice",
+    ] as const)
       if (typeof m.settings[key] === "boolean")
         state.settings[key] = m.settings[key];
     if (typeof m.settings.theme === "string")

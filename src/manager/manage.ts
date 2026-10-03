@@ -246,6 +246,7 @@ function adopt(next: State) {
   )
     setScope("all");
   render();
+  showConsent();
 }
 // Returns whether the library changed and the page was redrawn.
 async function refresh() {
@@ -1264,9 +1265,29 @@ $("#select-all").onchange = () => {
   else for (const id of ids) selected.delete(id);
   paintSelection();
 };
+// Chrome Web Store policy: the user agrees to this notice, inside the product,
+// before any tab data is saved. The background refuses to save until then.
+function showConsent() {
+  if (state.settings.dataNotice || $("#consent").open) return;
+  for (const open of document.querySelectorAll<HTMLDialogElement>(
+    "dialog[open]",
+  ))
+    open.close();
+  $("#consent").showModal();
+  // Start on the title so nothing is outlined until the keyboard is used.
+  $("#consent-title").focus();
+}
+$("#consent").addEventListener("cancel", (e) => e.preventDefault());
+$("#consent-agree").onclick = () =>
+  run(async () => {
+    await api({ type: "settings", settings: { dataNotice: true } });
+    $("#consent").close();
+    toast("You're set. Press Alt+C on any page to save it here.");
+  });
 $("#save-window").onclick = () =>
   run(async () => {
     const r = await api({ type: "capture", mode: "all" });
+    if (r.needsConsent) return showConsent();
     setScope("recent");
     toast(
       `${plural(r.count, "tab")} saved.${r.notClosed ? " Some source tabs stayed open because they changed." : ""}`,

@@ -4,6 +4,7 @@ export const defaults: Settings = {
   deduplicate: false,
   showAfterSave: true,
   theme: "system",
+  dataNotice: false,
 };
 export const uid = () => crypto.randomUUID();
 export const capturePrefix = "capture:";

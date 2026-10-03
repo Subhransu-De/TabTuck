@@ -172,6 +172,35 @@
         </div>
       </form>
     </dialog>
+    <dialog
+      id="consent"
+      aria-labelledby="consent-title"
+      aria-describedby="consent-summary"
+    >
+      <img class="consent-mark" src="../icons/128.png" alt="" />
+      <h2 id="consent-title" tabindex="-1">Before you save tabs</h2>
+      <p id="consent-summary">
+        TabTuck saves the address and title of each tab you choose to save, so
+        you can find it and restore it later.
+      </p>
+      <ul class="consent-facts">
+        <li>Everything stays in this browser, on this device.</li>
+        <li>No account, no tracking, and no network requests.</li>
+        <li>Your tabs are never sent or shared with anyone.</li>
+        <li>Delete them any time, or remove TabTuck to erase everything.</li>
+      </ul>
+      <div class="consent-actions">
+        <a
+          href="https://github.com/Subhransu-De/TabTuck/blob/main/wiki/privacy.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Read the privacy policy</a
+        >
+        <button id="consent-agree" type="button" class="primary">
+          Agree and continue
+        </button>
+      </div>
+    </dialog>
     <dialog id="prompt" aria-labelledby="prompt-title">
       <form id="prompt-form">
         <h2 id="prompt-title"></h2>

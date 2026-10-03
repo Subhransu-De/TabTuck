@@ -37,6 +37,9 @@ try {
   await page.waitForFunction(() =>
     document.querySelector("#summary")?.textContent?.includes("0 saved"),
   );
+  // First use: agree to the data notice before anything can be saved.
+  await page.locator("#consent-agree").click();
+  await page.locator("#consent").waitFor({ state: "hidden" });
   const invoke = <M extends Message>(message: M): Promise<MessageResult<M>> =>
     page.evaluate(async (message) => {
       const r: Reply<M> = await chrome.runtime.sendMessage(message);

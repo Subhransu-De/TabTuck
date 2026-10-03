@@ -22,6 +22,8 @@ export interface Settings {
   deduplicate: boolean;
   showAfterSave: boolean;
   theme: string;
+  // The user agreed to the in-product data notice; saving waits for it.
+  dataNotice: boolean;
 }
 export interface State {
   version: number;
@@ -57,6 +59,7 @@ export interface RestoreResult {
 export interface CaptureResult {
   count: number;
   notClosed?: number;
+  needsConsent?: boolean;
 }
 export type GroupPatch = Partial<
   Pick<
