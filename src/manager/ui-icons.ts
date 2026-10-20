@@ -12,7 +12,6 @@ const navigationIcons: Record<string, readonly [string, string]> = {
   pencil: ["Rename", "m4 20 4-1 11-11-3-3L5 16zM14 6l3 3"],
   chevron: ["Toggle", "m6 9 6 6 6-6"],
   file: ["Local file", "M6 3h8l4 4v14H6zM14 3v4h4"],
-  close: ["Remove", "M6 6l12 12M18 6 6 18"],
   layers: ["Everything", "m12 3 9 5-9 5-9-5zM3 13l9 5 9-5"],
 };
 export function icon(name: string, className = "nav-icon") {

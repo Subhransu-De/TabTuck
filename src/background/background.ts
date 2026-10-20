@@ -270,9 +270,9 @@ export async function capture(
       collection,
     );
   else await write(state!); // Durability precedes closing any source tab.
-  // A manager tab also keeps the original window alive when its last tab is saved.
-  if (settings.showAfterSave || chosen.length === tabs.length)
-    await show(windowId);
+  // Saving returns the user to the next tab like a normal close. The manager
+  // opens only to keep the window alive when its last tab is saved.
+  if (chosen.length === tabs.length) await show(windowId);
   const closed = await Promise.all(
     chosen.map(async (tab) => {
       try {
@@ -351,12 +351,7 @@ export async function dispatch(
   const state = await read();
   const g = state.groups.find((g) => g.id === m.groupId);
   if (m.type === "settings") {
-    for (const key of [
-      "keepRestored",
-      "deduplicate",
-      "showAfterSave",
-      "dataNotice",
-    ] as const)
+    for (const key of ["keepRestored", "deduplicate", "dataNotice"] as const)
       if (typeof m.settings[key] === "boolean")
         state.settings[key] = m.settings[key];
     if (typeof m.settings.theme === "string")

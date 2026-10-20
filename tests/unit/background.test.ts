@@ -206,19 +206,18 @@ test("storage failure never closes original tabs", async () => {
   await expect(capture("all", 7)).rejects.toThrow("Disk full");
   expect(removed).toEqual([]);
 });
-test("capture excludes pinned and other windows; creates manager in originating window", async () => {
+test("capture excludes pinned and other windows; never switches to the manager", async () => {
   await capture("all", 7);
   expect(removed).toEqual([1]);
   expect(stored.groups[0].tabs[0].title).toBe("A");
-  expect(created[0].windowId).toBe(7);
+  expect(created).toEqual([]);
 });
 test("explicit current capture skips pinned tabs", async () => {
   await capture("current", 7, 2);
   expect(removed).toEqual([]);
 });
-test("last-tab capture keeps originating window alive even with show disabled", async () => {
+test("last-tab capture keeps originating window alive", async () => {
   tabs = [tabs[0]];
-  stored.settings.showAfterSave = false;
   await capture("current", 7);
   expect(created[0].windowId).toBe(7);
   expect(removed).toEqual([1]);

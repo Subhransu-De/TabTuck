@@ -2,7 +2,6 @@ import type { SavedTab, TabGroup, Settings } from "./types.ts";
 export const defaults: Settings = {
   keepRestored: false,
   deduplicate: false,
-  showAfterSave: true,
   theme: "system",
   dataNotice: false,
 };

@@ -886,7 +886,7 @@ function tabRow(entry: Entry, opts: { showHost: boolean }) {
   time.title = `Saved ${longDate(entry.addedAt)}`;
   meta.append(time);
   const del = actionButton("", () => run(() => remove([t.id])), "delete");
-  del.append(icon("close"));
+  del.append(icon("trash"));
   del.setAttribute("aria-label", `Delete ${t.title}`);
   del.disabled = g.locked;
   if (g.locked) del.title = "Unlock this collection to delete tabs";
@@ -1451,9 +1451,7 @@ $("#settings-save").onclick = () =>
       const key = el.dataset.setting;
       if (key === "theme") settings.theme = el.value;
       else if (
-        (key === "keepRestored" ||
-          key === "deduplicate" ||
-          key === "showAfterSave") &&
+        (key === "keepRestored" || key === "deduplicate") &&
         el instanceof HTMLInputElement
       )
         settings[key] = el.checked;

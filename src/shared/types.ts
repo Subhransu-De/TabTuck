@@ -20,7 +20,6 @@ export interface TabGroup {
 export interface Settings {
   keepRestored: boolean;
   deduplicate: boolean;
-  showAfterSave: boolean;
   theme: string;
   // The user agreed to the in-product data notice; saving waits for it.
   dataNotice: boolean;
