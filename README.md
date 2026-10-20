@@ -2,6 +2,15 @@
   <img src="src/icons/512.png" alt="TabTuck icon" width="128" height="128" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/Subhransu-De/TabTuck/actions/workflows/checks.yml"><img src="https://img.shields.io/github/actions/workflow/status/Subhransu-De/TabTuck/checks.yml?branch=main&amp;label=Build&amp;style=flat" alt="Build status"></a>
+  <a href="package.json"><img src="https://img.shields.io/github/package-json/v/Subhransu-De/TabTuck?label=Version&amp;style=flat" alt="Version"></a>
+  <img src="https://img.shields.io/badge/Manifest-V3-4285F4?style=flat&amp;logo=googlechrome&amp;logoColor=white" alt="Manifest V3">
+  <img src="https://img.shields.io/badge/TypeScript-6-3178C6?style=flat&amp;logo=typescript&amp;logoColor=white" alt="TypeScript 6">
+  <img src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?style=flat&amp;logo=tailwindcss&amp;logoColor=white" alt="Tailwind CSS 4">
+  <img src="https://img.shields.io/badge/Bun-runtime-000000?style=flat&amp;logo=bun&amp;logoColor=white" alt="Bun">
+</p>
+
 # TabTuck
 
 Save tabs for later, keep them organized, and restore them in the same browser window. Built for Helium and other Chromium browsers with TypeScript and Tailwind CSS.
