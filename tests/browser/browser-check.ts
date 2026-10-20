@@ -136,6 +136,12 @@ try {
   assert.equal(await page.locator(".tab-row.selected").count(), 3);
   await page.keyboard.press("Escape");
   assert.equal(await page.locator(".tab-row.selected").count(), 0);
+  // Clearing drops the range anchor, so Shift-click selects one row.
+  await rows
+    .nth(1)
+    .click({ position: { x: 300, y: 10 }, modifiers: ["Shift"] });
+  assert.equal(await page.locator(".tab-row.selected").count(), 1);
+  await page.keyboard.press("Escape");
   // The Alpha and Beta collection opens its details in the second column.
   const alphaGroup = page
     .locator("#navigation .row.collection")

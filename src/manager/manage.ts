@@ -986,6 +986,8 @@ function paintSelection() {
 function updateSelection() {
   const ids = visible().map((e) => e.tab.id);
   const chosen = ids.filter((id) => selected.has(id)).length;
+  // Once nothing is selected, the next Shift-click starts a fresh range.
+  if (!selected.size) selectionAnchor = undefined;
   $("#selection").hidden = !selected.size;
   $("#hint").hidden = !!selected.size;
   $("#selected-count").textContent =
