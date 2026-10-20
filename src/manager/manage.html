@@ -143,15 +143,20 @@
         <button class="close" aria-label="Close">×</button>
         <h2 id="settings-title">Options</h2>
         <label class="option"
-          ><input type="checkbox" data-setting="keepRestored" /> Keep tabs in
-          the list after restoring</label
+          >Keep a tab in TabTuck after opening it
+          <input
+            type="checkbox"
+            class="switch"
+            role="switch"
+            data-setting="keepRestored" /></label
         ><label class="option"
-          ><input type="checkbox" data-setting="deduplicate" /> Skip URLs
-          already saved (close the duplicate tab)</label
-        ><label class="option"
-          ><input type="checkbox" data-setting="showAfterSave" /> Show TabTuck
-          after saving</label
-        >
+          >Skip URLs already saved (close the duplicate tab)
+          <input
+            type="checkbox"
+            class="switch"
+            role="switch"
+            data-setting="deduplicate"
+        /></label>
         <div class="shortcuts-row">
           <p id="command-status"></p>
           <button id="shortcuts" type="button">Change shortcuts</button>
@@ -166,9 +171,7 @@
           >
         </p>
         <div class="dialog-actions">
-          <button type="button" id="settings-save" class="primary">
-            Save options
-          </button>
+          <button type="button" id="settings-save" class="primary">Save</button>
         </div>
       </form>
     </dialog>
