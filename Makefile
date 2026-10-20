@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: install build check test test-browser test-restore lint format watch-css typecheck
+.PHONY: install build check test test-browser test-restore lint format watch-css typecheck audit-package
 
 install:
 	bun install --frozen-lockfile
@@ -31,3 +31,6 @@ watch-css: build
 
 typecheck:
 	bun run typecheck
+
+audit-package: build
+	bun run audit:package
