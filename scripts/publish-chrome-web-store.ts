@@ -60,36 +60,88 @@ export async function publish(options: PublishOptions) {
     return text ? (JSON.parse(text) as unknown) : {};
   }
 
-  const upload = await call(`${api}/upload/v2/${item}:upload`, {
-    method: "POST",
-    headers: { "Content-Type": "application/zip" },
-    body: zip,
-  });
-  let state = field(upload, "uploadState");
-  for (let attempt = 0; state === "IN_PROGRESS" && attempt < 30; attempt++) {
-    await sleep(10_000);
-    state = field(
-      await call(`${api}/v2/${item}:fetchStatus`, { method: "GET" }),
-      "lastAsyncUploadState",
+  const status = () => call(`${api}/v2/${item}:fetchStatus`, { method: "GET" });
+  // The state of the submitted or published revision that has this version.
+  function stateOf(current: unknown) {
+    for (const key of [
+      "submittedItemRevisionStatus",
+      "publishedItemRevisionStatus",
+    ]) {
+      const revision = field(current, key);
+      const channels = field(revision, "distributionChannels");
+      const state = field(revision, "state");
+      if (
+        Array.isArray(channels) &&
+        channels.some((channel) => field(channel, "crxVersion") === version) &&
+        typeof state === "string" &&
+        submittedStates.includes(state)
+      )
+        return state;
+    }
+  }
+
+  // A rerun after a successful submission has nothing left to do.
+  const existing = stateOf(await status());
+  if (existing) {
+    log(`Version ${version} is already submitted: ${existing}.`);
+    return existing;
+  }
+
+  let uploadError: unknown;
+  let uploaded: unknown;
+  try {
+    const upload = await call(`${api}/upload/v2/${item}:upload`, {
+      method: "POST",
+      headers: { "Content-Type": "application/zip" },
+      body: zip,
+    });
+    let state = field(upload, "uploadState");
+    for (let attempt = 0; state === "IN_PROGRESS" && attempt < 30; attempt++) {
+      await sleep(10_000);
+      state = field(await status(), "lastAsyncUploadState");
+    }
+    if (state !== "SUCCEEDED")
+      throw new Error(`Package upload ended in state ${String(state)}`);
+    uploaded = field(upload, "crxVersion");
+  } catch (error) {
+    // The store rejects a second upload of the same version. When an earlier
+    // run uploaded this version but failed to submit it, submit that draft and
+    // confirm its version below.
+    uploadError = error;
+    log(
+      `Upload failed; submitting the draft already in the store if it is version ${version}.`,
     );
   }
-  if (state !== "SUCCEEDED")
-    throw new Error(`Package upload ended in state ${String(state)}`);
-  const uploaded = field(upload, "crxVersion");
+  // Never submit a draft that holds a different version.
   if (uploaded !== undefined && uploaded !== version)
     throw new Error(
       `Store received version ${String(uploaded)}, not ${version}`,
     );
-  log(`Uploaded version ${version} to ${extensionId}.`);
+  if (uploadError === undefined)
+    log(`Uploaded version ${version} to ${extensionId}.`);
 
-  const result = await call(`${api}/v2/${item}:publish`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ publishType }),
-  });
+  let result: unknown;
+  try {
+    result = await call(`${api}/v2/${item}:publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publishType }),
+    });
+  } catch (error) {
+    if (uploadError === undefined) throw error;
+    throw new AggregateError(
+      [uploadError, error],
+      "Upload failed and no draft could be submitted",
+      { cause: error },
+    );
+  }
   const submitted = field(result, "state");
   if (typeof submitted !== "string" || !submittedStates.includes(submitted))
     throw new Error(`Publish request ended in state ${String(submitted)}`);
+  if (uploadError !== undefined && !stateOf(await status())) {
+    await call(`${api}/v2/${item}:cancelSubmission`, { method: "POST" });
+    throw uploadError;
+  }
   const warnings = field(result, "warningInfo");
   if (warnings !== undefined)
     log(`Store warnings: ${JSON.stringify(warnings)}`);
