@@ -150,7 +150,6 @@ export const bucketNames: Record<Bucket, string> = {
 };
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-const clock = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
 const dayAndClock = new Intl.DateTimeFormat(undefined, {
   month: "short",
   day: "numeric",
@@ -184,13 +183,6 @@ export function shortAgo(time: number, now = Date.now()) {
   if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
   if (minutes < 10_080) return `${Math.floor(minutes / 1440)}d`;
   return shortDate.format(time);
-}
-export function savedAt(time: number, now = Date.now()) {
-  return bucketOf(time, now) === "today"
-    ? `today ${clock.format(time)}`
-    : bucketOf(time, now) === "yesterday"
-      ? `yesterday ${clock.format(time)}`
-      : dayAndClock.format(time);
 }
 export function longDate(time: number) {
   return fullDate.format(time);

@@ -457,13 +457,6 @@
     width: 14px;
     height: 14px;
   }
-  /* The drop target only appears while a tab is being dragged. */
-  .col-2 > .foot {
-    display: none;
-  }
-  body.dragging .col-2 > .foot {
-    display: flex;
-  }
   .shortcuts-row {
     display: flex;
     align-items: center;
@@ -497,12 +490,6 @@
   .row.collection.in-folder {
     width: calc(100% - 12px);
     margin-left: 12px;
-  }
-  .row.collection.drop-target,
-  #drop-zone.drop-target {
-    outline: 2px dashed var(--accent);
-    outline-offset: -2px;
-    background: var(--accent-soft);
   }
   .marks {
     display: flex;
@@ -699,31 +686,6 @@
   .row.more.open .nav-icon {
     transform: rotate(180deg);
   }
-  #drop-zone {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    gap: 8px;
-    min-height: 30px;
-    padding: 0 8px;
-    border: 1.5px dashed transparent;
-    border-radius: 8px;
-    color: var(--ink-3);
-    font-size: 13px;
-  }
-  #drop-zone svg {
-    flex: none;
-    width: 14px;
-    height: 14px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-  }
-  body.dragging #drop-zone {
-    border-color: var(--line-2);
-    color: var(--ink-2);
-  }
 
   /* Column three: the tabs. */
   .head-3 {
@@ -828,51 +790,31 @@
   .list-head button:hover:not(:disabled) {
     background: var(--hover);
   }
-  .sep {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin: 14px 10px 4px;
-    white-space: nowrap;
-  }
-  .sep:first-child {
-    margin-top: 6px;
-  }
-  .sep::after {
-    content: "";
-    flex: 1;
-    align-self: center;
-    height: 1px;
-    background: var(--line);
-  }
-  .sep-label {
-    min-width: 0;
-    overflow: hidden;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--ink-2);
-    font: 600 12px var(--display);
-    text-overflow: ellipsis;
-  }
-  button.sep-label:hover {
-    color: var(--accent);
-  }
-  .sep-detail {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--ink-3);
-    font: 400 11px var(--mono);
-    text-overflow: ellipsis;
-  }
   .tab-row {
     position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
     min-height: 34px;
-    padding: 0 6px 0 10px;
+    padding: 0 6px 0 0;
     border-radius: 8px;
+    cursor: default;
+  }
+  /* The selection target spans the row's full height and the gutter beside
+     the box, so a near miss still lands on it. */
+  .pick {
+    display: flex;
+    flex: none;
+    align-self: stretch;
+    align-items: center;
+    margin-right: -6px;
+    padding: 0 6px 0 10px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .pick:hover input[type="checkbox"]:not(:checked) {
+    border-color: var(--accent);
   }
   #groups {
     overflow-anchor: none;
@@ -883,18 +825,17 @@
     overflow-anchor: none;
   }
   .tab-row:hover,
-  .tab-row:focus-within {
+  .tab-row:has(:focus-visible) {
     background: var(--hover);
   }
   .tab-row.selected {
     background: var(--current);
   }
-  .tab-row[draggable="true"] {
-    cursor: grab;
-  }
+  /* The link hugs its text, so the empty space beside it selects the row. */
   .tab-row a {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
+    margin-right: auto;
     overflow: hidden;
     font-weight: 500;
     text-overflow: ellipsis;
@@ -919,6 +860,8 @@
     max-width: 45%;
     color: var(--ink-3);
     font: 400 11px var(--mono);
+    -webkit-user-select: none;
+    user-select: none;
   }
   .domain {
     overflow: hidden;
@@ -946,7 +889,7 @@
     opacity: 0;
   }
   .tab-row:hover .delete:not(:disabled),
-  .tab-row:focus-within .delete:not(:disabled) {
+  .tab-row:has(:focus-visible) .delete:not(:disabled) {
     opacity: 1;
   }
   .tab-row .delete:hover:not(:disabled) {
@@ -956,12 +899,6 @@
   .tab-row .delete .nav-icon {
     width: 14px;
     height: 14px;
-  }
-  .tab-row.insert-before {
-    box-shadow: inset 0 2px 0 var(--accent);
-  }
-  .tab-row.insert-after {
-    box-shadow: inset 0 -2px 0 var(--accent);
   }
   .empty {
     max-width: 440px;
@@ -1402,6 +1339,12 @@
   .tab-row,
   button {
     transition:
+      background-color 120ms,
+      color 120ms;
+  }
+  .tab-row .delete {
+    transition:
+      opacity 120ms,
       background-color 120ms,
       color 120ms;
   }

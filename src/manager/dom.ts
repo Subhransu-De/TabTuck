@@ -13,7 +13,6 @@ interface ManagerElements {
   "#shortcuts": HTMLButtonElement;
   "#scope-head": HTMLElement;
   "#facets": HTMLElement;
-  "#drop-zone": HTMLElement;
   "#heading": HTMLElement;
   "#subheading": HTMLElement;
   "#search": HTMLInputElement;
