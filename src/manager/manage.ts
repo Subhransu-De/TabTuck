@@ -25,7 +25,6 @@ import {
   longDate,
   newestFirst,
   plural,
-  savedAt,
   shortAgo,
   siteLabel,
   sites,
@@ -39,7 +38,6 @@ let state: State;
 let scope = "recent",
   facet = "all",
   selected = new Set<string>(),
-  dragged: { groupId: string; ids: string[] } | null = null,
   busy = false,
   showAllSites = false,
   toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -62,14 +60,10 @@ let scopedView: Entry[] | undefined;
 let visibleView: Entry[] | undefined;
 let recentView: Entry[] | undefined;
 const collectionRows = new WeakMap<TabGroup, HTMLElement>();
-type TabItem =
-  | { kind: "tab"; entry: Entry }
-  | { kind: "separator"; entry: Entry; count: number; recent: boolean };
-let tabItems: TabItem[] = [];
+let tabItems: Entry[] = [];
 let listScrollTop = 0;
 let tabHeight = 34;
-let separatorHeight = 33;
-const tabWindow = new WindowedList<TabItem>($("#groups"));
+const tabWindow = new WindowedList<Entry>($("#groups"));
 
 function button(
   label: string,
@@ -371,13 +365,9 @@ function render() {
         ?.focus({ preventScroll: true });
     else if (tabFocus) {
       let index = tabItems.findIndex(
-        (item) =>
-          item.kind === "tab" && item.entry.tab.id === tabFocus.dataset.tab,
+        (entry) => entry.tab.id === tabFocus.dataset.tab,
       );
-      if (index < 0) {
-        index = Math.min(tabIndex, tabItems.length - 1);
-        while (index >= 0 && tabItems[index].kind !== "tab") index--;
-      }
+      if (index < 0) index = Math.min(tabIndex, tabItems.length - 1);
       if (index < 0 || !tabWindow.focus(index, focused.tagName.toLowerCase()))
         $("#search").focus({ preventScroll: true });
     }
@@ -466,21 +456,6 @@ function buildCollectionRow(g: TabGroup, inFolder: boolean) {
   if (scope === key) row.setAttribute("aria-current", "true");
   const q = query();
   if (q && !live([g]).some((e) => matches(e, q))) row.classList.add("dim");
-  row.addEventListener("dragover", (e) => {
-    // A selection can span collections; only a drop that moves nothing is refused.
-    if (!dragged || g.locked) return;
-    const own = new Set(g.tabs.map((t) => t.id));
-    if (dragged.ids.every((id) => own.has(id))) return;
-    e.preventDefault();
-    e.dataTransfer!.dropEffect = "move";
-    row.classList.add("drop-target");
-  });
-  row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
-  row.addEventListener("drop", (e) => {
-    e.preventDefault();
-    row.classList.remove("drop-target");
-    if (dragged && !g.locked) run(() => moveDragged(g.id));
-  });
   return row;
 }
 function collectionRow(g: TabGroup, inFolder: boolean) {
@@ -831,31 +806,19 @@ function renderFacets() {
   }
 }
 
-function separator(text: string, detail: string, onClick?: () => void) {
-  const sep = node("div", undefined, "sep");
-  const label = onClick
-    ? actionButton(text, onClick, "sep-label")
-    : node("span", text, "sep-label");
-  sep.append(label, node("span", detail, "sep-detail"));
-  return sep;
-}
 function tabRow(entry: Entry, opts: { showHost: boolean }) {
   const { tab: t, group: g } = entry;
   const row = node("div", undefined, "tab-row");
   row.dataset.tab = t.id;
   row.dataset.group = g.id;
-  row.draggable = !g.locked;
   row.classList.toggle("selected", selected.has(t.id));
   const check = node("input");
   check.type = "checkbox";
   check.checked = selected.has(t.id);
   check.setAttribute("aria-label", `Select ${t.title}`);
-  check.onchange = () => {
-    if (check.checked) selected.add(t.id);
-    else selected.delete(t.id);
-    row.classList.toggle("selected", check.checked);
-    updateSelection();
-  };
+  check.onclick = (e) => choose(t.id, check.checked, e.shiftKey);
+  const pick = node("label", undefined, "pick");
+  pick.append(check);
   const link = node("a", t.title);
   link.href = t.url;
   if (restoring.has(t.id)) {
@@ -890,42 +853,20 @@ function tabRow(entry: Entry, opts: { showHost: boolean }) {
   del.setAttribute("aria-label", `Delete ${t.title}`);
   del.disabled = g.locked;
   if (g.locked) del.title = "Unlock this collection to delete tabs";
-  row.append(check, websiteIcon(t.url), link, meta, del);
-  row.addEventListener("dragstart", (e) => {
-    if (!row.draggable) return e.preventDefault();
-    const ids = selected.has(t.id)
-      ? visible()
-          .filter((v) => selected.has(v.tab.id) && !v.group.locked)
-          .map((v) => v.tab.id)
-      : [t.id];
-    dragged = { groupId: g.id, ids };
-    e.dataTransfer!.setData("text/plain", t.url);
-    e.dataTransfer!.effectAllowed = "move";
-    document.body.classList.add("dragging");
-  });
-  // Reordering only makes sense inside one collection's full list.
-  const reorderable =
-    scope === `group:${g.id}` && facet === "all" && !query() && !g.locked;
-  if (reorderable) {
-    row.addEventListener("dragover", (e) => {
-      if (!dragged) return;
+  link.draggable = false;
+  const site = websiteIcon(t.url);
+  if (site instanceof HTMLImageElement) site.draggable = false;
+  row.append(pick, site, link, meta, del);
+  // Clicking anywhere except the title and the buttons selects the row.
+  row.onclick = (e) => {
+    if ((e.target as Element).closest("a, button, input")) return;
+    e.preventDefault();
+    choose(t.id, !selected.has(t.id), e.shiftKey);
+  };
+  row.onmousedown = (e) => {
+    if ((e.shiftKey || e.detail > 1) && !(e.target as Element).closest("a"))
       e.preventDefault();
-      const after =
-        e.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2;
-      setInsertion(row, after);
-    });
-    row.addEventListener("drop", (e) => {
-      if (!dragged) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const after =
-        e.clientY >= row.getBoundingClientRect().top + row.offsetHeight / 2;
-      const beforeId = after
-        ? live([g])[live([g]).findIndex((e) => e.tab.id === t.id) + 1]?.tab.id
-        : t.id;
-      run(() => moveDragged(g.id, beforeId));
-    });
-  }
+  };
   return row;
 }
 function renderTabs() {
@@ -962,62 +903,13 @@ function renderTabs() {
     : plural(list.length, "tab");
   $("#restore-all").disabled = !list.length;
   $("#undo").hidden = !state.trash?.length;
-  tabItems = [];
-  if (scope === "recent") {
-    for (let i = 0; i < list.length;) {
-      const entry = list[i];
-      const minute = Math.floor(entry.addedAt / 60_000);
-      let end = i + 1;
-      while (
-        end < list.length &&
-        list[end].group.id === entry.group.id &&
-        Math.floor(list[end].addedAt / 60_000) === minute
-      )
-        end++;
-      tabItems.push({ kind: "separator", entry, count: end - i, recent: true });
-      while (i < end) tabItems.push({ kind: "tab", entry: list[i++] });
-    }
-  } else if (scope.startsWith("group:")) {
-    tabItems = list.map((entry) => ({ kind: "tab", entry }));
-  } else {
-    const counts = new Map<TabGroup, number>();
-    for (const entry of list)
-      counts.set(entry.group, (counts.get(entry.group) ?? 0) + 1);
-    let last: TabGroup | undefined;
-    for (const entry of list) {
-      if (entry.group !== last) {
-        last = entry.group;
-        tabItems.push({
-          kind: "separator",
-          entry,
-          count: counts.get(entry.group)!,
-          recent: false,
-        });
-      }
-      tabItems.push({ kind: "tab", entry });
-    }
-  }
+  tabItems = list;
   const showHost = !site;
   const paintWindow = () =>
     tabWindow.set(
       tabItems,
-      (item) =>
-        item.kind === "tab"
-          ? tabRow(item.entry, { showHost })
-          : separator(
-              item.recent
-                ? `Saved ${savedAt(item.entry.addedAt)}`
-                : collectionLabel(item.entry.group),
-              item.recent
-                ? `${collectionLabel(item.entry.group)} · ${plural(item.count, "tab")}`
-                : `${plural(item.count, "tab")} · ${savedAt(item.entry.group.createdAt)}`,
-              () => {
-                setScope(`group:${item.entry.group.id}`);
-                render();
-              },
-            ),
-      (item, i) =>
-        item.kind === "tab" ? tabHeight : separatorHeight - (i === 0 ? 8 : 0),
+      (entry) => tabRow(entry, { showHost }),
+      () => tabHeight,
       listScrollTop,
     );
   paintWindow();
@@ -1055,17 +947,32 @@ function renderTabs() {
     container.append(empty);
   }
   const row = container.querySelector<HTMLElement>(".tab-row");
-  const sep = container.querySelector<HTMLElement>(".sep");
   const nextTabHeight = row?.getBoundingClientRect().height ?? tabHeight;
-  const nextSeparatorHeight = sep
-    ? sep.getBoundingClientRect().height + 18
-    : separatorHeight;
-  if (nextTabHeight !== tabHeight || nextSeparatorHeight !== separatorHeight) {
+  if (nextTabHeight !== tabHeight) {
     tabHeight = nextTabHeight;
-    separatorHeight = nextSeparatorHeight;
     paintWindow();
   }
   updateSelection();
+}
+// Shift-click extends from the last row the user picked to this one.
+let selectionAnchor: string | undefined;
+function choose(id: string, on: boolean, range: boolean) {
+  const to = tabItems.findIndex((e) => e.tab.id === id);
+  const from =
+    range && selectionAnchor
+      ? tabItems.findIndex((e) => e.tab.id === selectionAnchor)
+      : -1;
+  const ids =
+    from >= 0 && to >= 0
+      ? tabItems
+          .slice(Math.min(from, to), Math.max(from, to) + 1)
+          .map((e) => e.tab.id)
+      : [id];
+  for (const each of ids)
+    if (on) selected.add(each);
+    else selected.delete(each);
+  selectionAnchor = id;
+  paintSelection();
 }
 function paintSelection() {
   for (const row of $("#groups").querySelectorAll<HTMLElement>(".tab-row")) {
@@ -1079,6 +986,8 @@ function paintSelection() {
 function updateSelection() {
   const ids = visible().map((e) => e.tab.id);
   const chosen = ids.filter((id) => selected.has(id)).length;
+  // Once nothing is selected, the next Shift-click starts a fresh range.
+  if (!selected.size) selectionAnchor = undefined;
   $("#selection").hidden = !selected.size;
   $("#hint").hidden = !!selected.size;
   $("#selected-count").textContent =
@@ -1120,54 +1029,6 @@ const vineObserver = new ResizeObserver(followVine);
 for (const target of ["#scope-head", "#list-head", "#facets"] as const)
   vineObserver.observe($(target));
 document.fonts.ready.then(followVine);
-
-/* ---------- Drag and drop ---------- */
-
-let insertionRow: HTMLElement | null = null;
-function setInsertion(row: HTMLElement | null, after = false) {
-  if (insertionRow !== row) {
-    insertionRow?.classList.remove("insert-before", "insert-after");
-    insertionRow = row;
-  }
-  row?.classList.toggle("insert-before", !after);
-  row?.classList.toggle("insert-after", after);
-}
-function finishDrag() {
-  dragged = null;
-  setInsertion(null);
-  document.body.classList.remove("dragging");
-  for (const el of document.querySelectorAll(".drop-target"))
-    el.classList.remove("drop-target");
-}
-async function moveDragged(targetId?: string, beforeId?: string) {
-  if (!dragged) return;
-  const d = dragged;
-  finishDrag();
-  if (d.ids.length === 1 && d.ids[0] === beforeId) return;
-  if (d.groupId === targetId && d.ids.length === 1)
-    await api({
-      type: "reorder",
-      groupId: targetId,
-      tabId: d.ids[0],
-      beforeId,
-    });
-  else await api({ type: "move", ids: d.ids, targetId, beforeId });
-  if (!targetId)
-    toast(`Started a new collection with ${plural(d.ids.length, "tab")}.`);
-  for (const id of d.ids) selected.delete(id);
-}
-document.addEventListener("dragend", finishDrag);
-$("#drop-zone").ondragover = (e) => {
-  if (!dragged) return;
-  e.preventDefault();
-  $("#drop-zone").classList.add("drop-target");
-};
-$("#drop-zone").ondragleave = () =>
-  $("#drop-zone").classList.remove("drop-target");
-$("#drop-zone").ondrop = (e) => {
-  e.preventDefault();
-  if (dragged) run(() => moveDragged(undefined));
-};
 
 /* ---------- Actions ---------- */
 
@@ -1515,9 +1376,9 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener(
 let today = new Date().toDateString();
 setInterval(() => {
   // Record the new date only once Recent has been redrawn, so a tick that
-  // falls during an action or a drag is retried on the next one.
+  // falls during an action is retried on the next one.
   if (new Date().toDateString() !== today) {
-    if (busy || dragged) return;
+    if (busy) return;
     today = new Date().toDateString();
     render();
     return;

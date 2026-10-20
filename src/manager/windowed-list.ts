@@ -17,7 +17,6 @@ export class WindowedList<T> {
   private create: (item: T, index: number) => HTMLElement = () =>
     document.createElement("div");
   private frame = 0;
-  private dragged = -1;
   private top = document.createElement("div");
   private bottom = document.createElement("div");
   constructor(private container: HTMLElement) {
@@ -27,16 +26,6 @@ export class WindowedList<T> {
     });
     new ResizeObserver(() => this.schedule()).observe(container);
     container.addEventListener("keydown", (event) => this.keydown(event));
-    container.addEventListener("dragstart", (event) => {
-      const row = (event.target as Element).closest<HTMLElement>(
-        "[data-window-index]",
-      );
-      this.dragged = row ? Number(row.dataset.windowIndex) : -1;
-    });
-    document.addEventListener("dragend", () => {
-      this.dragged = -1;
-      this.schedule();
-    });
   }
   set(
     items: T[],
@@ -109,7 +98,7 @@ export class WindowedList<T> {
         : -1;
     const indices = new Set<number>();
     for (let i = start; i < end; i++) indices.add(i);
-    for (const index of [focus, this.dragged, pin])
+    for (const index of [focus, pin])
       if (index >= 0 && index < this.items.length) indices.add(index);
     const children: HTMLElement[] = [];
     let previous = 0;

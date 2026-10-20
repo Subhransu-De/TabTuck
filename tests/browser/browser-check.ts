@@ -114,6 +114,34 @@ try {
   await page.locator("#search").fill("Beta");
   assert.equal(await page.locator(".tab-row").count(), 1);
   await page.locator("#search").fill("");
+  // The list is plain tab rows: no batch headers and nothing to drag.
+  const rows = page.locator(".tab-row");
+  assert.equal(await rows.count(), 3);
+  assert.equal(await page.locator("#groups .sep, #drop-zone").count(), 0);
+  assert.equal(
+    await page.$$eval(
+      ".tab-row, .tab-row *",
+      (els) => els.filter((e) => (e as HTMLElement).draggable).length,
+    ),
+    0,
+  );
+  // A click just beside the checkbox still selects the row.
+  const box = (await rows.nth(0).locator("input").boundingBox())!;
+  await page.mouse.click(box.x - 4, box.y + box.height / 2);
+  assert.equal(await page.locator(".tab-row.selected").count(), 1);
+  // Shift-clicking a row's empty space selects the range up to it.
+  await rows
+    .nth(2)
+    .click({ position: { x: 300, y: 10 }, modifiers: ["Shift"] });
+  assert.equal(await page.locator(".tab-row.selected").count(), 3);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".tab-row.selected").count(), 0);
+  // Clearing drops the range anchor, so Shift-click selects one row.
+  await rows
+    .nth(1)
+    .click({ position: { x: 300, y: 10 }, modifiers: ["Shift"] });
+  assert.equal(await page.locator(".tab-row.selected").count(), 1);
+  await page.keyboard.press("Escape");
   // The Alpha and Beta collection opens its details in the second column.
   const alphaGroup = page
     .locator("#navigation .row.collection")

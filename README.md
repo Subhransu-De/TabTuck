@@ -10,7 +10,7 @@ Save tabs for later, keep them organized, and restore them in the same browser w
 
 - Save the current tab or tabs to its left or right. Pinned tabs and tabs in browser groups are skipped.
 - Organize saved links with groups, folders, stars, search, and a view grouped by site.
-- Drag links to reorder them or move them between groups.
+- Select tabs, then press Move to send them to another collection or a new one. Shift-click selects a range.
 - Restore individual links or whole groups in the same window.
 - Import OneTab text exports and export saved tabs.
 - Use light or dark mode.
