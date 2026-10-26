@@ -318,6 +318,23 @@ test("a stale page cannot bring back tabs whose bin time is up", async () => {
   expect(stored.groups.some((g) => g.id === undone.id)).toBe(false);
   expect(stored.trash).toEqual([]);
 });
+test("a full bin drops its oldest deletes first", async () => {
+  const batch = (size: number, title: string) => ({
+    groups: [
+      group(
+        Array.from({ length: size }, (_, i) => ({
+          id: uid(),
+          url: `https://example.com/${title}/${i}`,
+          title,
+        })),
+      ),
+    ],
+    at: Date.now(),
+  });
+  stored.trash = [batch(9_000, "new"), batch(1_500, "mid"), batch(200, "old")];
+  await dispatch({ type: "state" });
+  expect(stored.trash!.map((e) => e.groups[0].tabs[0].title)).toEqual(["new"]);
+});
 test("libraries saved before the bin get its default time", async () => {
   delete (stored.settings as Partial<State["settings"]>).binHours;
   const state = (await dispatch({ type: "state" })) as State;

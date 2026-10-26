@@ -536,7 +536,7 @@ function Dialogs({ state, settings, binTimes, host }: DialogsProps) {
         <DialogContent
           id="settings"
           layout="gap-2 p-6"
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[560px]"
+          className="sm:max-w-[560px]"
         >
           <DialogHeader>
             <DialogTitle id="settings-title">Options</DialogTitle>

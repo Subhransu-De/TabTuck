@@ -269,6 +269,16 @@ try {
     true,
   );
   await page.screenshot({ path: path.join(artifactDir, "mobile.png") });
+  // On a short screen a dialog stays on screen and scrolls.
+  await page.setViewportSize({ width: 390, height: 300 });
+  await page.locator("#transfer-open").click();
+  assert.ok(
+    await page.locator("#transfer").evaluate((popup) => {
+      const box = popup.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight;
+    }),
+  );
+  await page.locator("#transfer .close").click();
   const windows = await worker.evaluate(async () => chrome.windows.getAll());
   assert.equal(windows.length, 2);
   assert.deepEqual(errors, []);

@@ -162,16 +162,20 @@ export function selectAll(on: boolean) {
   if (!selection.size) anchor.id = undefined;
 }
 // Selected tabs in on-screen order, then any hidden by the current view in
-// saved order, so copied links never depend on the order of clicks.
+// saved order, so copied links never depend on the order of clicks. In the
+// bin, tabs past their bin time no longer count.
 function orderedSelection() {
   const shown = screen.visible
     .map((e) => e.tab.id)
     .filter((id) => selection.has(id));
   const seen = new Set(shown);
-  const pool = ui.get().scope === "bin" ? views().binGroups() : state().groups;
-  const rest = pool.flatMap((g) =>
-    g.tabs.map((t) => t.id).filter((id) => selection.has(id) && !seen.has(id)),
-  );
+  const pool =
+    ui.get().scope === "bin"
+      ? views()
+          .bin()
+          .map((e) => e.tab.id)
+      : state().groups.flatMap((g) => g.tabs.map((t) => t.id));
+  const rest = pool.filter((id) => selection.has(id) && !seen.has(id));
   return [...shown, ...rest];
 }
 

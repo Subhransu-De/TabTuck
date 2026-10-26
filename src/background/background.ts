@@ -48,18 +48,21 @@ function normalize(state?: State): State {
 // it cannot crowd the library out of extension storage. The newest delete is
 // always kept whole.
 const BIN_TAB_LIMIT = 10_000;
-// Drops deletes older than the user's bin time. Returns whether any went.
+// Drops deletes older than the user's bin time, and the oldest ones past the
+// tab limit. Returns whether any went.
 function purgeBin(state: State, now = Date.now()) {
   const trash = state.trash ?? [];
   const keep = state.settings.binHours * HOUR;
   let room = BIN_TAB_LIMIT;
-  const next = trash.filter((entry, i) => {
-    if (now - entry.at >= keep) return false;
+  const next: BinEntry[] = [];
+  // Newest first: once a delete does not fit, it and every older one go.
+  for (const entry of trash) {
+    if (now - entry.at >= keep) continue;
     const size = entry.groups.reduce((n, g) => n + g.tabs.length, 0);
-    if (i > 0 && size > room) return false;
+    if (next.length && size > room) break;
     room -= size;
-    return true;
-  });
+    next.push(entry);
+  }
   state.trash = next;
   return next.length !== trash.length;
 }
