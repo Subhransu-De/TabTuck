@@ -240,6 +240,27 @@ try {
   );
   assert.equal(backup[0].tabs[0].title, "Gamma");
   await page.locator("#transfer .close").click();
+  // A long list mounts its rows wherever it is scrolled to.
+  await invoke({
+    type: "import",
+    text: Array.from(
+      { length: 300 },
+      (_, i) => `https://example.com/long-${i} | Long ${i}`,
+    ).join("\n"),
+  });
+  await page.locator('#navigation [data-scope="all"]').click();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".tab-row").length > 1,
+  );
+  await page.locator("#groups").evaluate((list) => {
+    list.scrollTop = list.scrollHeight / 2;
+  });
+  await page.waitForFunction(() => {
+    const box = document.querySelector("#groups")!.getBoundingClientRect();
+    return !!document
+      .elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      ?.closest(".tab-row");
+  });
   await page.screenshot({ path: path.join(artifactDir, "desktop.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(
@@ -253,7 +274,7 @@ try {
   assert.equal(windows.length, 2);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: Helium UI capture, pinned exclusion, window isolation, single/selected restore, import, search, lock, delete/undo, persistence, settings, backup, responsive layout; no page errors.",
+    "PASS: Helium UI capture, pinned exclusion, window isolation, single/selected restore, import, search, lock, delete/undo, persistence, settings, backup, long-list scrolling, responsive layout; no page errors.",
   );
 } finally {
   await context.close();

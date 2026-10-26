@@ -30,8 +30,9 @@ function windowOf(top: number, height: number, row: number, count: number) {
   ] as const;
 }
 
-// The rows of a section that starts somewhere inside a scrolling list, as a
-// [start, end) range. It re-renders the caller only when the range changes.
+// The rows of a section that starts somewhere inside a scrolling list, or of
+// the list itself when both are the same element, as a [start, end) range. It
+// re-renders the caller only when the range changes.
 export function useRowWindow(
   list: RefObject<HTMLElement | null>,
   section: RefObject<HTMLElement | null>,
@@ -52,11 +53,15 @@ export function useRowWindow(
       const inner = section.current;
       // Short lists render every row, so they never need the layout read.
       if (!inner || live.current.count <= SMALL) return;
-      // Where the section starts, in the list's scrolled content.
+      // Where the section starts, in the list's scrolled content. A list that
+      // is its own section starts at the top; its padding is well inside the
+      // overscan.
       const offset =
-        inner.getBoundingClientRect().top -
-        outer.getBoundingClientRect().top +
-        outer.scrollTop;
+        inner === outer
+          ? 0
+          : inner.getBoundingClientRect().top -
+            outer.getBoundingClientRect().top +
+            outer.scrollTop;
       const next = {
         top: outer.scrollTop - offset,
         height: outer.clientHeight,
