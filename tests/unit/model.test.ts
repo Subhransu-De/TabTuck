@@ -6,7 +6,7 @@ import {
   groupBySites,
   group,
 } from "../../src/shared/model.ts";
-test("OneTab import preserves groups, duplicate URLs and titles with separators", () => {
+test("Text import preserves groups, duplicate URLs and titles with separators", () => {
   const raw =
     "https://example.com/ | A | B\r\nhttps://example.com/ | Duplicate\r\n\r\nhttps://example.org/ | Other";
   const g = parseImport(raw);

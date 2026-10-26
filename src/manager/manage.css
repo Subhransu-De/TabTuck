@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
-@source "./manage.html";
-@source "./manage.ts";
+@import "tw-animate-css";
+@source "./**/*.tsx";
 
 @font-face {
   font-family: "Schibsted Grotesk";
@@ -21,49 +21,121 @@
   font-display: swap;
 }
 
+/* The dark theme is the "dark" class on body; portals render inside body. */
+@custom-variant dark (&:is(.dark *));
+/* Base UI state attributes, as shadcn/ui's Luma components name them. */
+@custom-variant data-open (&:where([data-open]:not([data-open="false"])));
+@custom-variant data-closed (&:where([data-closed]:not([data-closed="false"])));
+@custom-variant data-checked (&:where([data-checked]:not([data-checked="false"])));
+@custom-variant data-unchecked (&:where([data-unchecked]:not([data-unchecked="false"])));
+@custom-variant data-disabled (&:where([data-disabled]:not([data-disabled="false"])));
+
+/* Luma's variables, all mapped onto TabTuck's tokens below. */
+@theme inline {
+  --font-sans: var(--tt-font-body);
+  --font-heading: var(--tt-font-display);
+  --font-mono: var(--tt-font-mono);
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  /* Raised surface: the "white" Luma puts on thumbs and selected segments. */
+  --color-raised: var(--tt-panel);
+  --color-scrim: var(--scrim);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Tailwind's shadow geometry (Luma's soft elevation), tinted from TabTuck. */
+  --shadow-xs: 0 1px 2px 0
+    color-mix(in oklab, var(--shadow-tint) 5%, transparent);
+  --shadow-sm:
+    0 1px 3px 0 color-mix(in oklab, var(--shadow-tint) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklab, var(--shadow-tint) 10%, transparent);
+  --shadow-md:
+    0 4px 6px -1px color-mix(in oklab, var(--shadow-tint) 10%, transparent),
+    0 2px 4px -2px color-mix(in oklab, var(--shadow-tint) 10%, transparent);
+  --shadow-lg:
+    0 10px 15px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent),
+    0 4px 6px -4px color-mix(in oklab, var(--shadow-tint) 10%, transparent);
+  --shadow-xl:
+    0 20px 25px -5px color-mix(in oklab, var(--shadow-tint) 10%, transparent),
+    0 8px 10px -6px color-mix(in oklab, var(--shadow-tint) 10%, transparent);
+  /* Follows a drawn shape, such as a switch thumb inside its clear border. */
+  --drop-shadow-sm: 0 1px 2px
+    color-mix(in oklab, var(--shadow-tint) 15%, transparent);
+}
+
 @layer base {
   :root {
     color-scheme: light;
     /* Delft: cobalt on a cool porcelain ground. */
-    --field: #edf1f6;
-    --panel: #fbfcfe;
-    --ink: #172a47;
-    --accent: #2a5599;
-    --mark: #d4a017;
-    --danger: #b53a2e;
-    --on-accent: #fbfcfe;
-    --shadow:
-      0 1px 0 color-mix(in oklab, var(--ink) 6%, transparent),
-      0 10px 30px -14px color-mix(in oklab, var(--ink) 35%, transparent);
-    --display: "Schibsted Grotesk", "Hanken Grotesk", system-ui, sans-serif;
-    --body: "Hanken Grotesk", "Segoe UI Variable", system-ui, sans-serif;
-    --mono: "Spline Sans Mono", ui-monospace, "Cascadia Mono", monospace;
+    --tt-field: #edf1f6;
+    --tt-panel: #fbfcfe;
+    --tt-ink: #172a47;
+    --tt-accent: #2a5599;
+    --tt-on-accent: #fbfcfe;
+    --tt-mark: #d4a017;
+    --tt-danger: #b53a2e;
+    --tt-shadow:
+      0 1px 0 color-mix(in oklab, var(--tt-ink) 6%, transparent),
+      0 10px 30px -14px color-mix(in oklab, var(--tt-ink) 35%, transparent);
+    --shadow-tint: var(--tt-ink);
+    --tt-font-display:
+      "Schibsted Grotesk", "Hanken Grotesk", system-ui, sans-serif;
+    --tt-font-body:
+      "Hanken Grotesk", "Segoe UI Variable", system-ui, sans-serif;
+    --tt-font-mono:
+      "Spline Sans Mono", ui-monospace, "Cascadia Mono", monospace;
     --gap: 18px;
     --dur: 160ms;
+    --radius: 0.625rem;
   }
-  /* Until the saved choice loads, the page follows the system theme. */
+  /* Until the page's script sets a class, it follows the system theme. */
   body.dark {
     color-scheme: dark;
-    --field: #0b1424;
-    --panel: #13203a;
-    --ink: #dfe7f4;
-    --accent: #86a8e8;
-    --mark: #e3b23c;
-    --danger: #f07d6e;
-    --on-accent: #0b1424;
-    --shadow: 0 1px 0 rgb(0 0 0 / 30%), 0 12px 32px -12px rgb(0 0 0 / 70%);
+    --tt-field: #0b1424;
+    --tt-panel: #13203a;
+    --tt-ink: #dfe7f4;
+    --tt-accent: #86a8e8;
+    --tt-on-accent: #0b1424;
+    --tt-mark: #e3b23c;
+    --tt-danger: #f07d6e;
+    --tt-shadow: 0 1px 0 rgb(0 0 0 / 30%), 0 12px 32px -12px rgb(0 0 0 / 70%);
+    /* TabTuck's dark shadows are black; the scrim darkens with the field. */
+    --shadow-tint: rgb(0 0 0 / 100%);
+    --scrim: color-mix(in oklab, var(--tt-field) 72%, transparent);
   }
   @media (prefers-color-scheme: dark) {
     body:not(.light) {
       color-scheme: dark;
-      --field: #0b1424;
-      --panel: #13203a;
-      --ink: #dfe7f4;
-      --accent: #86a8e8;
-      --mark: #e3b23c;
-      --danger: #f07d6e;
-      --on-accent: #0b1424;
-      --shadow: 0 1px 0 rgb(0 0 0 / 30%), 0 12px 32px -12px rgb(0 0 0 / 70%);
+      --tt-field: #0b1424;
+      --tt-panel: #13203a;
+      --tt-ink: #dfe7f4;
+      --tt-accent: #86a8e8;
+      --tt-on-accent: #0b1424;
+      --tt-mark: #e3b23c;
+      --tt-danger: #f07d6e;
+      --tt-shadow: 0 1px 0 rgb(0 0 0 / 30%), 0 12px 32px -12px rgb(0 0 0 / 70%);
+      --shadow-tint: rgb(0 0 0 / 100%);
     }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -75,24 +147,58 @@
   body {
     height: 100%;
   }
-  /* Derived shades live on body so they follow the theme tokens set there. */
+  /* Derived shades and Luma's variables live on body, so they follow the
+     theme tokens set there. */
   body {
-    --ink-2: color-mix(in oklab, var(--ink) 74%, var(--panel));
-    --ink-3: color-mix(in oklab, var(--ink) 66%, var(--panel));
-    --line: color-mix(in oklab, var(--ink) 10%, var(--panel));
-    --line-2: color-mix(in oklab, var(--ink) 18%, var(--panel));
-    --hover: color-mix(in oklab, var(--accent) 7%, var(--panel));
-    --current: color-mix(in oklab, var(--accent) 13%, var(--panel));
-    --accent-soft: color-mix(in oklab, var(--accent) 18%, var(--panel));
-    --mark-soft: color-mix(in oklab, var(--mark) 22%, var(--panel));
-    --danger-soft: color-mix(in oklab, var(--danger) 13%, var(--panel));
+    --tt-ink-2: color-mix(in oklab, var(--tt-ink) 74%, var(--tt-panel));
+    --tt-ink-3: color-mix(in oklab, var(--tt-ink) 66%, var(--tt-panel));
+    --tt-line: color-mix(in oklab, var(--tt-ink) 10%, var(--tt-panel));
+    --tt-line-2: color-mix(in oklab, var(--tt-ink) 18%, var(--tt-panel));
+    --tt-subtle: color-mix(in oklab, var(--tt-ink) 6%, var(--tt-panel));
+    --tt-hover: color-mix(in oklab, var(--tt-accent) 7%, var(--tt-panel));
+    --tt-current: color-mix(in oklab, var(--tt-accent) 13%, var(--tt-panel));
+    --tt-accent-soft: color-mix(
+      in oklab,
+      var(--tt-accent) 18%,
+      var(--tt-panel)
+    );
+    --tt-danger-soft: color-mix(
+      in oklab,
+      var(--tt-danger) 13%,
+      var(--tt-panel)
+    );
+    --scrim: color-mix(in oklab, var(--tt-ink) 30%, transparent);
+
+    --background: var(--tt-field);
+    --foreground: var(--tt-ink);
+    --popover: var(--tt-panel);
+    --popover-foreground: var(--tt-ink);
+    --primary: var(--tt-accent);
+    --primary-foreground: var(--tt-on-accent);
+    --secondary: var(--tt-subtle);
+    --secondary-foreground: var(--tt-ink);
+    --muted: var(--tt-subtle);
+    --muted-foreground: var(--tt-ink-3);
+    --accent: var(--tt-current);
+    --accent-foreground: var(--tt-ink);
+    --destructive: var(--tt-danger);
+    --border: var(--tt-line);
+    --input: var(--tt-line-2);
+    --ring: var(--tt-accent);
 
     margin: 0;
     overflow: hidden;
-    background: var(--field);
-    color: var(--ink);
-    font: 400 14px/1.35 var(--body);
+    background: var(--tt-field);
+    color: var(--tt-ink);
+    font: 400 14px/1.35 var(--tt-font-body);
     -webkit-font-smoothing: antialiased;
+  }
+  * {
+    border-color: var(--border);
+  }
+  ::selection {
+    background: var(--tt-accent-soft);
+    color: var(--tt-ink);
   }
   [hidden] {
     display: none !important;
@@ -110,64 +216,58 @@
     text-decoration: none;
   }
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--tt-accent);
     outline-offset: 2px;
     border-radius: 4px;
-  }
-  kbd {
-    padding: 0 5px;
-    border: 1px solid var(--line-2);
-    border-radius: 4px;
-    color: var(--ink-2);
-    font: 400 11px/16px var(--mono);
-  }
-  input[type="checkbox"] {
-    appearance: none;
-    position: relative;
-    flex: none;
-    width: 15px;
-    height: 15px;
-    margin: 0;
-    border: 1.5px solid color-mix(in oklab, var(--ink) 52%, var(--panel));
-    border-radius: 4px;
-    background: var(--panel);
-    cursor: pointer;
-  }
-  input[type="checkbox"]:hover {
-    border-color: var(--accent);
-  }
-  input[type="checkbox"]:checked,
-  input[type="checkbox"]:indeterminate {
-    border-color: var(--accent);
-    background: var(--accent);
-  }
-  input[type="checkbox"]:checked::after {
-    content: "";
-    position: absolute;
-    left: 4px;
-    top: 1px;
-    width: 4px;
-    height: 8px;
-    border: solid var(--on-accent);
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-  }
-  input[type="checkbox"]:indeterminate::after {
-    content: "";
-    position: absolute;
-    left: 3px;
-    top: 5.5px;
-    width: 7px;
-    height: 2px;
-    background: var(--on-accent);
-  }
-  input[type="checkbox"]:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 }
 
 @layer components {
+  /* Luma's checkbox, on a native input: a filled box that turns accent. */
+  .checkbox {
+    appearance: none;
+    display: inline-grid;
+    flex: none;
+    place-content: center;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: color-mix(in oklab, var(--input) 90%, transparent);
+    cursor: pointer;
+  }
+  .checkbox:checked,
+  .checkbox:indeterminate {
+    border-color: var(--primary);
+    background: var(--primary);
+  }
+  .checkbox:checked::after {
+    content: "";
+    width: 8px;
+    height: 4.5px;
+    border: solid var(--primary-foreground);
+    border-width: 0 0 2px 2px;
+    transform: translateY(-1px) rotate(-45deg);
+  }
+  .checkbox:indeterminate::after {
+    content: "";
+    width: 8px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--primary-foreground);
+  }
+  .checkbox:focus-visible {
+    border-color: var(--ring);
+    border-radius: 5px;
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
+  }
+  .checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   /* The lattice: three panels with gutters that carry the vine. */
   .app {
     position: relative;
@@ -177,6 +277,10 @@
     height: 100vh;
     padding: var(--gap);
     box-sizing: border-box;
+    /* The line column one's one-digit counts centre on, from the column's
+       right edge: the list's 10px padding, a row's 14px, and half an 11px
+       mono digit (0.6em). The buttons beside the counts centre on it too. */
+    --count-axis: calc(10px + 14px + 3.3px);
   }
   .col {
     position: relative;
@@ -185,8 +289,8 @@
     min-width: 0;
     min-height: 0;
     border-radius: 14px;
-    background: var(--panel);
-    box-shadow: var(--shadow);
+    background: var(--tt-panel);
+    box-shadow: var(--tt-shadow);
   }
   .head {
     display: flex;
@@ -200,7 +304,7 @@
     min-height: 0;
     padding: 4px 10px 12px;
     overflow: hidden auto;
-    scrollbar-color: var(--line-2) transparent;
+    scrollbar-color: var(--tt-line-2) transparent;
     scrollbar-width: thin;
   }
   .foot {
@@ -210,7 +314,7 @@
     gap: 12px;
     min-height: 48px;
     padding: 10px 14px;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid var(--tt-line);
   }
   .vine {
     position: absolute;
@@ -223,19 +327,19 @@
   }
   .vine path {
     fill: none;
-    stroke: var(--accent);
+    stroke: var(--tt-accent);
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
   .vine circle {
-    fill: var(--accent);
-    stroke: var(--field);
+    fill: var(--tt-accent);
+    stroke: var(--tt-field);
     stroke-width: 2;
   }
   .vine circle.off {
-    fill: var(--field);
-    stroke: var(--accent);
+    fill: var(--tt-field);
+    stroke: var(--tt-accent);
     stroke-width: 1.5;
   }
   .vine .faded path {
@@ -251,18 +355,18 @@
     gap: 9px;
     width: 100%;
     min-height: 34px;
-    padding: 0 10px;
+    padding: 0 14px;
     border: 0;
-    border-radius: 8px;
+    border-radius: 10px;
     background: none;
-    color: var(--ink);
+    color: var(--tt-ink);
     font: inherit;
   }
   .row:hover {
-    background: var(--hover);
+    background: var(--tt-hover);
   }
   .row.is-current {
-    background: var(--current);
+    background: var(--tt-current);
   }
   /* Matching bars on both edges frame the chosen row and each selected tab. */
   .row.is-current::before,
@@ -276,7 +380,7 @@
     bottom: 8px;
     width: 3px;
     border-radius: 3px;
-    background: var(--accent);
+    background: var(--tt-accent);
   }
   .row.is-current::after,
   .tab-row.selected::after {
@@ -290,10 +394,10 @@
     flex: none;
     width: 16px;
     height: 16px;
-    color: var(--ink-2);
+    color: var(--tt-ink-2);
   }
   .row.is-current > .nav-icon {
-    color: var(--accent);
+    color: var(--tt-accent);
   }
   .row .label {
     flex: 1 1 auto;
@@ -304,17 +408,18 @@
   }
   .row .count {
     flex: none;
-    color: var(--ink-3);
-    font: 400 11px var(--mono);
+    color: var(--tt-ink-3);
+    font: 400 11px var(--tt-font-mono);
     font-variant-numeric: tabular-nums;
   }
   .row.is-current .count {
-    color: var(--accent);
+    color: var(--tt-accent);
   }
   .nav-icon,
   .mark,
   .rename-icon,
-  .file-mark {
+  .file-mark,
+  .search-icon {
     fill: none;
     stroke: currentColor;
     stroke-width: 1.7;
@@ -329,35 +434,39 @@
     object-fit: contain;
   }
   .file-mark {
-    color: var(--ink-2);
+    color: var(--tt-ink-2);
   }
+  /* Sites without an icon get a letter tile in a colour of their own. */
+  .monogram {
+    display: inline-grid;
+    place-items: center;
+    background: oklch(0.6 0.12 var(--hue));
+    color: #fff;
+    font: 700 10px/1 var(--tt-font-display);
+  }
+  /* Black favicons vanish on the dark theme and white ones on the light
+     theme; set those on a small tile of the opposite tone. */
+  body.dark .site-mark[data-tone="dark"],
+  body.light .site-mark[data-tone="light"] {
+    padding: 1px;
+    background: var(--tt-ink);
+  }
+  /* The right margin centres an eyebrow's 24px button on the count axis: less
+     the list's 10px padding and half the button. */
   .eyebrow {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 16px 10px 4px;
-    color: var(--ink-3);
-    font: 500 11px/1 var(--mono);
+    margin: 16px calc(var(--count-axis) - 22px) 4px 10px;
+    color: var(--tt-ink-3);
+    font: 500 11px/1 var(--tt-font-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-  }
-  .eyebrow-action {
-    padding: 2px 4px;
-    border: 0;
-    border-radius: 5px;
-    background: none;
-    color: var(--accent);
-    font: 600 12px var(--body);
-    letter-spacing: 0;
-    text-transform: none;
-  }
-  .eyebrow-action:hover {
-    background: var(--hover);
   }
   .quiet {
     margin: 0;
     padding: 10px;
-    color: var(--ink-3);
+    color: var(--tt-ink-3);
     font-size: 13px;
     line-height: 1.45;
   }
@@ -374,122 +483,62 @@
   }
   .brand-name {
     flex: 1;
-    font: 650 22px/1.1 var(--display);
+    font: 650 22px/1.1 var(--tt-font-display);
     letter-spacing: -0.015em;
   }
-  .icon-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 0;
-    border-radius: 7px;
-    background: none;
-    color: var(--ink-2);
+  /* The theme button's place in the panels manage.html paints first. */
+  .shell-button {
+    width: 32px;
+    height: 32px;
   }
-  .icon-button:hover {
-    background: var(--hover);
-    color: var(--ink);
+  /* Centred on the count axis: less the head's 18px padding and half the
+     32px button. */
+  #theme-toggle,
+  .shell-button {
+    margin-right: calc(var(--count-axis) - 34px);
   }
-  .icon-button svg {
-    width: 16px;
-    height: 16px;
-  }
-  #summary {
-    margin: 0;
-    color: var(--ink-3);
-    font: 400 11px var(--mono);
-    white-space: nowrap;
-  }
-  .tuck {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 40px;
-    margin: 2px 14px 6px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 10px;
-    background: var(--accent);
-    color: var(--on-accent);
-    font: 600 14px var(--display);
-  }
-  .tuck:hover {
-    filter: brightness(1.06);
-  }
-  .tuck svg {
-    width: 16px;
-    height: 16px;
+  .theme-icon {
     fill: none;
     stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
+    stroke-width: 1.8;
+  }
+  .theme-icon path {
+    fill: currentColor;
   }
   .row.scope .label {
-    font: 600 14px var(--display);
+    font: 600 14px var(--tt-font-display);
   }
-  .row.collection .label {
+  .row.collection .label,
+  .row.site .label {
     font-weight: 500;
   }
   .row.collection .label.unnamed {
-    color: var(--ink-2);
+    color: var(--tt-ink-2);
     font-weight: 400;
   }
-  .acts button.icon-only {
-    justify-content: center;
-    width: 28px;
-    padding: 0;
-  }
-  .eyebrow-action.icon-only {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    color: var(--ink-3);
-  }
-  .eyebrow-action.icon-only:hover {
-    color: var(--accent);
-  }
-  .eyebrow-action .nav-icon {
-    width: 14px;
-    height: 14px;
-  }
-  .shortcuts-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  #shortcuts {
-    flex: none;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--accent);
-    font: 600 13px var(--body);
-  }
-  #shortcuts:hover {
-    text-decoration: underline;
-  }
-  .privacy-note {
-    margin: 14px 0 0;
-    color: var(--ink-3);
-    font-size: 12.5px;
-  }
-  .privacy-note a {
-    margin-left: 4px;
-    color: var(--accent);
-    font-weight: 600;
-  }
-  .row.collection {
-    min-height: 34px;
-  }
   .row.collection.in-folder {
-    width: calc(100% - 12px);
-    margin-left: 12px;
+    width: calc(100% - 18px);
+    margin-left: 18px;
+  }
+  /* A folder's rows grow out of its head when it opens and shrink back into
+     it when it closes, so the rows below slide instead of jumping. */
+  .row.collection.in-folder:is(.unfolding, .folding) {
+    overflow: hidden;
+    interpolate-size: allow-keywords;
+  }
+  .row.collection.in-folder.unfolding {
+    animation: fold var(--dur) ease-out;
+  }
+  .row.collection.in-folder.folding {
+    animation: fold calc(var(--dur) * 0.75) ease-in reverse forwards;
+    pointer-events: none;
+  }
+  @keyframes fold {
+    from {
+      height: 0;
+      min-height: 0;
+      opacity: 0;
+    }
   }
   .marks {
     display: flex;
@@ -501,11 +550,11 @@
     height: 13px;
   }
   .mark.star {
-    color: var(--mark);
-    fill: var(--mark);
+    color: var(--tt-mark);
+    fill: var(--tt-mark);
   }
   .mark.lock {
-    color: var(--ink-3);
+    color: var(--tt-ink-3);
   }
   .folder-head {
     display: flex;
@@ -521,7 +570,7 @@
     padding: 0;
     border: 0;
     background: none;
-    color: var(--ink-3);
+    color: var(--tt-ink-3);
   }
   .folder-toggle .nav-icon {
     width: 12px;
@@ -531,44 +580,37 @@
   .folder-head.closed .folder-toggle .nav-icon {
     transform: rotate(-90deg);
   }
-  .row.folder {
-    padding-left: 4px;
-  }
   .row.folder .label {
-    font: 600 13px var(--display);
+    font: 600 13px var(--tt-font-display);
   }
   .foot-1 {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
-    padding: 12px 18px 14px;
+    padding: 8px 8px 10px;
   }
   .links {
     display: flex;
-    gap: 16px;
+    gap: 2px;
   }
-  .links button {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--ink-2);
-    font: 500 13px var(--body);
-  }
-  .links button:hover {
-    color: var(--accent);
+  /* Centred on the count axis: less the footer's 8px padding and half the
+     32px button. */
+  #settings-open {
+    margin-right: calc(var(--count-axis) - 24px);
+    margin-left: auto;
   }
 
   /* Column two: what the chosen scope holds. */
   #scope-head {
     gap: 8px;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--tt-line);
   }
   #scope-head h2 {
     margin: 0;
     min-width: 0;
     overflow: hidden;
-    font: 650 22px/1.15 var(--display);
+    font: 650 22px/1.15 var(--tt-font-display);
     letter-spacing: -0.015em;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -592,13 +634,13 @@
     white-space: nowrap;
   }
   .rename.unnamed {
-    color: var(--ink-2);
+    color: var(--tt-ink-2);
   }
   .rename-icon {
     flex: none;
     width: 14px;
     height: 14px;
-    color: var(--ink-3);
+    color: var(--tt-ink-3);
     opacity: 0;
     transition: opacity var(--dur);
   }
@@ -606,61 +648,20 @@
   .rename:focus-visible .rename-icon {
     opacity: 1;
   }
-  #scope-head .sub {
-    margin: 0;
-    color: var(--ink-3);
-    font: 400 11px/1.5 var(--mono);
-  }
   .acts {
     display: flex;
     flex-wrap: wrap;
-    gap: 2px;
-    margin: 4px 0 0 -6px;
-  }
-  .acts button {
-    display: inline-flex;
     align-items: center;
-    gap: 5px;
-    height: 28px;
-    padding: 0 6px;
-    border: 0;
-    border-radius: 7px;
-    background: none;
-    color: var(--ink-2);
-    font: 500 12px var(--body);
-    white-space: nowrap;
+    gap: 2px;
+    margin: 4px 0 0 -4px;
   }
-  .acts button:hover:not(:disabled) {
-    background: var(--hover);
-    color: var(--ink);
+  .acts > [data-action="restore"] {
+    margin-right: 4px;
   }
-  .acts .nav-icon {
-    width: 14px;
-    height: 14px;
-  }
-  .acts button.primary {
-    margin-right: 2px;
-    background: var(--accent);
-    color: var(--on-accent);
-  }
-  .acts button.primary:hover:not(:disabled) {
-    background: var(--accent);
-    color: var(--on-accent);
-    filter: brightness(1.06);
-  }
-  .acts button.on {
-    color: var(--accent);
-  }
-  .acts button.on.star {
-    color: var(--ink);
-  }
-  .acts button.on.star .nav-icon {
-    color: var(--mark);
-    fill: var(--mark);
-  }
-  .acts button.danger:hover {
-    background: var(--danger-soft);
-    color: var(--danger);
+  /* The current facet's fill starts as far below the line as the first tab's
+     checkbox does in column three. */
+  #facets {
+    padding-top: 13px;
   }
   .row.facet {
     min-height: 32px;
@@ -669,13 +670,13 @@
     font-weight: 500;
   }
   .row.facet[data-facet="all"] .label {
-    font: 600 14px var(--display);
+    font: 600 14px var(--tt-font-display);
   }
   .row.more {
     justify-content: center;
     gap: 6px;
     min-height: 30px;
-    color: var(--ink-3);
+    color: var(--tt-ink-3);
     font-size: 12px;
   }
   .row.more .nav-icon {
@@ -688,72 +689,69 @@
   }
 
   /* Column three: the tabs. */
+  /* The extra space below sets "Select all" level with the first facet in
+     Recent, where column two's head holds only its title. */
   .head-3 {
     flex-direction: row;
     align-items: flex-start;
     gap: 16px;
-  }
-  .title-block {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
+    padding-bottom: 13px;
   }
   #heading {
+    flex: 1 1 auto;
+    min-width: 0;
     margin: 0;
     overflow: hidden;
-    font: 650 22px/1.15 var(--display);
+    font: 650 22px/1.15 var(--tt-font-display);
     letter-spacing: -0.015em;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  #subheading {
-    margin: 0;
-    color: var(--ink-3);
-    font: 400 11px var(--mono);
-  }
+  /* Luma's input group: a filled pill that rings in accent on focus. */
   .search {
     position: relative;
+    display: flex;
     flex: none;
+    align-items: center;
     width: min(300px, 40%);
+    height: 36px;
+    border: 1px solid transparent;
+    border-radius: calc(var(--radius) * 2.6);
+    background: color-mix(in oklab, var(--input) 50%, transparent);
+    transition:
+      border-color 120ms,
+      box-shadow 120ms;
+  }
+  .search:has(input:focus-visible) {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
   }
   .search input {
-    width: 100%;
-    height: 36px;
-    padding: 0 40px 0 34px;
-    border: 1px solid var(--line-2);
-    border-radius: 10px;
-    background: var(--field);
-    color: var(--ink);
-    font: 400 14px var(--body);
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0 40px 0 36px;
+    border: 0;
+    background: none;
+    color: var(--tt-ink);
+    font: 400 14px var(--tt-font-body);
+    outline: none;
   }
   .search input::placeholder {
-    color: var(--ink-3);
-  }
-  .search input:focus {
-    border-color: var(--accent);
-    outline: none;
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    color: var(--tt-ink-3);
   }
   .search-icon {
     position: absolute;
-    left: 11px;
-    top: 10px;
+    left: 13px;
     width: 16px;
     height: 16px;
-    color: var(--ink-3);
+    color: var(--tt-ink-3);
     pointer-events: none;
   }
-  .search kbd {
+  .search [data-slot="kbd"] {
     position: absolute;
-    right: 10px;
-    top: 9px;
-    background: var(--panel);
-    pointer-events: none;
-  }
-  .search input:not(:placeholder-shown) + kbd {
-    display: none;
+    right: 7px;
+    font-family: var(--tt-font-mono);
   }
   .list-head {
     display: flex;
@@ -762,33 +760,21 @@
     gap: 12px;
     height: 36px;
     margin: 0 10px;
-    padding: 0 10px;
-    border-bottom: 1px solid var(--line);
+    padding: 0 6px 0 10px;
+    border-bottom: 1px solid var(--tt-line);
   }
-  .select-all {
+  .pick-all {
     display: flex;
     align-items: center;
     gap: 9px;
-    color: var(--ink-2);
+    color: var(--tt-ink-2);
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
   }
-  #list-meta {
-    flex: 1;
-    color: var(--ink-3);
-    font: 400 11px var(--mono);
-  }
-  .list-head button {
-    padding: 4px 8px;
-    border: 0;
-    border-radius: 6px;
-    background: none;
-    color: var(--accent);
-    font: 600 12px var(--body);
-  }
-  .list-head button:hover:not(:disabled) {
-    background: var(--hover);
+  /* The list's actions sit at the bar's right end. */
+  #restore-all {
+    margin-left: auto;
   }
   .tab-row {
     position: relative;
@@ -797,7 +783,7 @@
     gap: 10px;
     min-height: 34px;
     padding: 0 6px 0 0;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: default;
   }
   /* The selection target spans the row's full height and the gutter beside
@@ -813,8 +799,8 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  .pick:hover input[type="checkbox"]:not(:checked) {
-    border-color: var(--accent);
+  .pick:hover .checkbox:not(:checked) {
+    background: color-mix(in oklab, var(--primary) 30%, var(--tt-panel));
   }
   #groups {
     overflow-anchor: none;
@@ -826,10 +812,10 @@
   }
   .tab-row:hover,
   .tab-row:has(:focus-visible) {
-    background: var(--hover);
+    background: var(--tt-hover);
   }
   .tab-row.selected {
-    background: var(--current);
+    background: var(--tt-current);
   }
   /* The link hugs its text, so the empty space beside it selects the row. */
   .tab-row a {
@@ -843,9 +829,9 @@
     cursor: pointer;
   }
   .tab-row a:hover {
-    color: var(--accent);
+    color: var(--tt-accent);
     text-decoration: underline;
-    text-decoration-color: var(--accent-soft);
+    text-decoration-color: var(--tt-accent-soft);
     text-underline-offset: 3px;
   }
   .tab-row a[aria-busy="true"] {
@@ -858,8 +844,8 @@
     align-items: center;
     gap: 12px;
     max-width: 45%;
-    color: var(--ink-3);
-    font: 400 11px var(--mono);
+    color: var(--tt-ink-3);
+    font: 400 11px var(--tt-font-mono);
     -webkit-user-select: none;
     user-select: none;
   }
@@ -868,13 +854,15 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .tab-date {
+  .tab-date,
+  .tab-left {
     flex: none;
     min-width: 34px;
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  .tab-row .delete {
+  /* Row tools: Luma's round ghost icon buttons, shown on hover or focus. */
+  .row-tool {
     display: inline-flex;
     flex: none;
     align-items: center;
@@ -883,20 +871,28 @@
     height: 24px;
     padding: 0;
     border: 0;
-    border-radius: 6px;
+    border-radius: 999px;
     background: none;
-    color: var(--ink-3);
+    color: var(--tt-ink-3);
     opacity: 0;
   }
-  .tab-row:hover .delete:not(:disabled),
-  .tab-row:has(:focus-visible) .delete:not(:disabled) {
+  .row-tool:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
+  }
+  .tab-row:hover .row-tool:not(:disabled),
+  .tab-row:has(:focus-visible) .row-tool:not(:disabled) {
     opacity: 1;
   }
-  .tab-row .delete:hover:not(:disabled) {
-    background: var(--danger-soft);
-    color: var(--danger);
+  .row-tool.bin-restore:hover {
+    background: color-mix(in oklab, var(--primary) 12%, transparent);
+    color: var(--tt-accent);
   }
-  .tab-row .delete .nav-icon {
+  .row-tool.delete:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--destructive) 12%, transparent);
+    color: var(--tt-danger);
+  }
+  .row-tool .nav-icon {
     width: 14px;
     height: 14px;
   }
@@ -906,20 +902,13 @@
   }
   .empty h2 {
     margin: 0 0 6px;
-    font: 650 18px var(--display);
+    font: 650 18px var(--tt-font-display);
   }
   .empty p {
     margin: 0 0 14px;
-    color: var(--ink-2);
+    color: var(--tt-ink-2);
     line-height: 1.5;
     overflow-wrap: anywhere;
-  }
-  .empty button {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--accent);
-    font-weight: 600;
   }
   .strip {
     position: relative;
@@ -934,170 +923,69 @@
   #selected-count {
     margin-right: auto;
     padding-left: 4px;
-    font: 600 14px var(--display);
+    font: 600 14px var(--tt-font-display);
     white-space: nowrap;
   }
-  #selection button {
-    flex: none;
-    height: 32px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 8px;
-    background: none;
-    color: var(--ink);
-    font: 500 13px var(--body);
-    white-space: nowrap;
-  }
-  #selection button:hover {
-    background: var(--hover);
-  }
-  #selection button.primary {
-    background: var(--accent);
-    color: var(--on-accent);
-  }
-  #selection button.primary:hover {
-    filter: brightness(1.06);
-  }
-  #selection button.danger:hover {
-    background: var(--danger-soft);
-    color: var(--danger);
-  }
-  #hint {
-    margin: 0;
-    padding-left: 4px;
-    color: var(--ink-3);
-    font-size: 12px;
+  /* With nothing selected the strip folds away; toasts still rise from it. */
+  .strip.idle {
+    min-height: 0;
+    padding: 0;
+    border-top: 0;
   }
   #status {
     position: absolute;
     right: 14px;
     bottom: calc(100% + 12px);
     z-index: 50;
+    max-width: min(560px, calc(100% - 28px));
+  }
+  /* Luma's toast: a raised card that slides up. */
+  .toast {
     display: flex;
     align-items: center;
     gap: 14px;
-    max-width: min(560px, calc(100% - 28px));
-    padding: 10px 12px 10px 16px;
-    border-radius: 10px;
-    background: var(--ink);
-    color: var(--panel);
+    padding: 10px 10px 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 1.8);
+    background: var(--popover);
+    color: var(--popover-foreground);
     font-size: 13px;
-    box-shadow: var(--shadow);
+    box-shadow:
+      0 10px 15px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent),
+      0 4px 6px -4px color-mix(in oklab, var(--shadow-tint) 10%, transparent);
+    animation: toast-in var(--dur) ease-out;
   }
   #status-text {
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  #status-undo {
-    flex: none;
-    padding: 4px 10px;
-    border: 0;
-    border-radius: 6px;
-    background: color-mix(in oklab, var(--panel) 14%, var(--ink));
-    color: var(--panel);
-    font-weight: 600;
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
   }
 
-  /* Native dialogs. */
-  dialog {
-    width: min(560px, 92vw);
-    max-height: 90vh;
-    margin: auto;
-    padding: 22px;
-    overflow: auto;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    background: var(--panel);
-    color: var(--ink);
-    box-shadow: var(--shadow);
-  }
-  dialog::backdrop {
-    background: rgb(11 20 36 / 55%);
-  }
-  dialog h2 {
-    margin: 0 0 14px;
-    padding-right: 32px;
-    font: 650 22px var(--display);
-    letter-spacing: -0.015em;
-  }
-  dialog p {
-    margin: 10px 0;
-    color: var(--ink-2);
-    font-size: 13px;
-    line-height: 1.5;
-  }
-  dialog p:empty {
-    display: none;
-  }
-  dialog input:not([type="checkbox"], [type="radio"], [type="file"]),
-  dialog select,
-  dialog textarea {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--line-2);
-    border-radius: 9px;
-    background: var(--field);
-    color: var(--ink);
-    font: 400 14px var(--body);
-    box-sizing: border-box;
-  }
-  dialog textarea {
-    height: 180px;
-    resize: vertical;
-    font: 400 12px/1.5 var(--mono);
-  }
-  dialog input[type="file"] {
-    display: block;
-    margin-top: 10px;
-    color: var(--ink-2);
-    font-size: 12px;
-  }
-  dialog input[type="file"]::file-selector-button {
-    margin-right: 10px;
-    padding: 6px 10px;
-    border: 0;
-    border-radius: 7px;
-    background: var(--hover);
-    color: var(--ink);
-    font: 500 12px var(--body);
-    cursor: pointer;
-  }
   /* First-use data notice: the user agrees here before anything is saved. */
-  #consent {
-    width: min(460px, 92vw);
-    padding: 28px 28px 22px;
-  }
   .consent-mark {
     display: block;
     width: 44px;
     height: 44px;
     margin-bottom: 16px;
   }
-  #consent-title {
-    margin: 0 0 8px;
-    padding: 0;
-  }
-  #consent-title:focus {
-    outline: none;
-  }
-  #consent-summary {
-    margin: 0 0 16px;
-    color: var(--ink-2);
-    font-size: 14px;
-  }
   .consent-facts {
     display: grid;
     gap: 9px;
     margin: 0;
     padding: 14px 16px;
-    border-radius: 10px;
-    background: var(--field);
+    border-radius: calc(var(--radius) * 1.8);
+    background: var(--tt-field);
     list-style: none;
   }
   .consent-facts li {
     position: relative;
     padding-left: 24px;
-    color: var(--ink);
+    color: var(--tt-ink);
     font-size: 13.5px;
     line-height: 1.45;
   }
@@ -1108,185 +996,108 @@
     top: 5px;
     width: 10px;
     height: 5px;
-    border-bottom: 2px solid var(--accent);
-    border-left: 2px solid var(--accent);
+    border-bottom: 2px solid var(--tt-accent);
+    border-left: 2px solid var(--tt-accent);
     transform: rotate(-45deg);
   }
-  .consent-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 22px;
+  /* A native select with Luma's trigger chevron. */
+  .native-select {
+    position: relative;
+    display: block;
   }
-  .consent-actions a {
-    color: var(--accent);
-    font-size: 13px;
-    font-weight: 600;
-  }
-  #consent-agree {
-    height: 38px;
-    padding: 0 18px;
-    border: 0;
-    border-radius: 9px;
-    background: var(--accent);
-    color: var(--on-accent);
-    font: 600 14px var(--body);
-  }
-  #consent-agree:hover {
-    filter: brightness(1.06);
-  }
-  .close {
-    float: right;
-    width: 30px;
-    height: 30px;
-    margin: -4px -4px 0 0;
-    border: 0;
-    border-radius: 7px;
-    background: none;
-    color: var(--ink-3);
-    font-size: 20px;
-    text-align: center;
-  }
-  .close:hover {
-    background: var(--hover);
-    color: var(--ink);
-  }
-  .dialog-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 18px;
-    padding-top: 14px;
-    border-top: 1px solid var(--line);
-  }
-  #settings .dialog-actions {
-    padding-top: 0;
-    border-top: 0;
-  }
-  .dialog-actions button {
-    height: 34px;
-    padding: 0 14px;
-    border: 1px solid var(--line-2);
-    border-radius: 9px;
-    background: var(--panel);
-    color: var(--ink);
-    font: 500 13px var(--body);
-  }
-  .dialog-actions button:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .dialog-actions button.primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-  }
-  .dialog-actions button.primary:hover {
-    color: var(--on-accent);
-    filter: brightness(1.06);
-  }
-  .option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: space-between;
-    padding: 10px 0;
-    font-size: 14px;
-    cursor: pointer;
-  }
-  input[type="checkbox"].switch {
-    width: 34px;
-    height: 20px;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--ink) 28%, var(--panel));
-  }
-  input[type="checkbox"].switch::after {
+  .native-select::after {
     content: "";
     position: absolute;
-    left: 3px;
-    top: 3px;
-    width: 14px;
-    height: 14px;
+    right: 16px;
+    top: 13px;
+    width: 7px;
+    height: 7px;
+    border: solid var(--muted-foreground);
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+  .file-input {
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .file-input::file-selector-button {
+    height: 30px;
+    margin-right: 10px;
+    padding: 0 14px;
     border: 0;
-    border-radius: 50%;
-    background: var(--panel);
-    transform: none;
-  }
-  input[type="checkbox"].switch:checked {
-    background: var(--accent);
-  }
-  input[type="checkbox"].switch:checked::after {
-    left: 17px;
-    background: var(--on-accent);
-  }
-  input[type="checkbox"].switch:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  .option select {
-    width: auto;
-    margin-left: auto;
-  }
-  #folder-icons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 14px 0 0;
-    padding: 0;
-    border: 0;
-  }
-  #folder-icons legend {
-    margin-bottom: 8px;
-    padding: 0;
-    color: var(--ink-3);
-    font: 500 11px var(--mono);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  #folder-icons label {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
+    border-radius: 999px;
+    background: var(--secondary);
+    color: var(--foreground);
+    font: 500 13px var(--tt-font-body);
     cursor: pointer;
   }
-  #folder-icons input {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    opacity: 0;
-    cursor: pointer;
-  }
-  #folder-icons .nav-icon {
-    width: 40px;
-    height: 40px;
-    padding: 10px;
-    border: 1px solid var(--line-2);
-    border-radius: 9px;
-    box-sizing: border-box;
-  }
-  #folder-icons input:checked + svg {
-    border-color: var(--accent);
-    background: var(--hover);
-    color: var(--accent);
-  }
-  #folder-icons input:focus-visible + svg {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+}
+
+/* TabTuck's type and colours on a few Luma buttons. Unlayered, so these win
+   over the buttons' utilities. */
+.tuck {
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 2px 14px 6px;
+  font: 600 14px var(--tt-font-display);
+}
+.tuck .nav-icon {
+  stroke-width: 2;
+}
+.eyebrow-action {
+  color: var(--tt-ink-3);
+}
+.eyebrow-action:hover {
+  color: var(--tt-accent);
+}
+.eyebrow-action .nav-icon {
+  width: 14px;
+  height: 14px;
+}
+.links [data-slot="button"] {
+  color: var(--tt-ink-2);
+  font-weight: 500;
+}
+.links [data-slot="button"]:hover {
+  color: var(--tt-accent);
+}
+#theme-toggle {
+  color: var(--tt-ink-2);
+}
+.acts .act {
+  color: var(--tt-ink-2);
+}
+.acts .act .nav-icon {
+  width: 15px;
+  height: 15px;
+}
+.acts .act.on {
+  color: var(--tt-accent);
+}
+.acts .act.on.star {
+  color: var(--tt-ink);
+}
+.acts .act.on.star .nav-icon {
+  color: var(--tt-mark);
+  fill: var(--tt-mark);
+}
+.search input:not(:placeholder-shown) ~ [data-slot="kbd"] {
+  display: none;
+}
+.list-action {
+  color: var(--tt-accent);
+  font-weight: 600;
+}
+.empty-action {
+  height: auto;
+  padding: 0;
+  font-weight: 600;
 }
 
 @media (max-width: 1180px) {
   .app {
     --gap: 14px;
-    grid-template-columns: 252px 284px minmax(0, 1fr);
   }
   .head-3 {
     flex-direction: column;
@@ -1305,9 +1116,6 @@
     flex: 1 0 100%;
     padding-left: 0;
   }
-  #selection button {
-    padding: 0 10px;
-  }
 }
 @media (max-width: 860px) {
   body {
@@ -1321,37 +1129,28 @@
   .vine {
     display: none;
   }
-  .col {
-    max-height: none;
-  }
   .list {
     max-height: 60vh;
-  }
-  .head-3 {
-    flex-direction: column;
-  }
-  .search {
-    width: 100%;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
   .row,
   .tab-row,
-  button {
+  .row-tool,
+  .folder-toggle,
+  .rename {
     transition:
       background-color 120ms,
-      color 120ms;
+      color 120ms,
+      opacity 120ms;
   }
-  .tab-row .delete {
-    transition:
-      opacity 120ms,
-      background-color 120ms,
-      color 120ms;
-  }
-  input[type="checkbox"].switch,
-  input[type="checkbox"].switch::after {
-    transition:
-      background-color 120ms,
-      left 120ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

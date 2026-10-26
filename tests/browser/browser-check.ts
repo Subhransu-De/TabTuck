@@ -34,8 +34,9 @@ try {
   const id = new URL(worker.url()).host;
   const page = await context.newPage();
   await page.goto(`chrome-extension://${id}/manager/manage.html`);
-  await page.waitForFunction(() =>
-    document.querySelector("#summary")?.textContent?.includes("0 saved"),
+  await page.waitForFunction(
+    () =>
+      document.querySelector(`[data-scope="all"] .count`)?.textContent === "0",
   );
   // First use: agree to the data notice before anything can be saved.
   await page.locator("#consent-agree").click();
@@ -90,8 +91,9 @@ try {
   );
   assert.equal(untouched, 1);
   await page.locator(".tab-row a").click();
-  await page.waitForFunction(() =>
-    document.querySelector("#summary")?.textContent?.startsWith("0 saved"),
+  await page.waitForFunction(
+    () =>
+      document.querySelector(`[data-scope="all"] .count`)?.textContent === "0",
   );
   const restored = await worker.evaluate(async () =>
     chrome.tabs.query({ url: "https://example.com/?capture-a" }),
@@ -112,8 +114,15 @@ try {
   );
   await page.locator("#transfer .close").click();
   await page.locator("#search").fill("Beta");
+  // The list follows the search box a frame behind, so typing never waits.
+  await page.waitForFunction(
+    () => document.querySelectorAll(".tab-row").length === 1,
+  );
   assert.equal(await page.locator(".tab-row").count(), 1);
   await page.locator("#search").fill("");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".tab-row").length === 3,
+  );
   // The list is plain tab rows: no batch headers and nothing to drag.
   const rows = page.locator(".tab-row");
   assert.equal(await rows.count(), 3);
@@ -142,10 +151,14 @@ try {
     .click({ position: { x: 300, y: 10 }, modifiers: ["Shift"] });
   assert.equal(await page.locator(".tab-row.selected").count(), 1);
   await page.keyboard.press("Escape");
-  // The Alpha and Beta collection opens its details in the second column.
-  const alphaGroup = page
-    .locator("#navigation .row.collection")
-    .filter({ has: page.locator(".count", { hasText: /^2$/ }) });
+  // A collection outside any folder has its own row in the sidebar. The Alpha
+  // and Beta collection opens its details in the second column.
+  const pair = (await invoke({ type: "state" })).groups.find(
+    (g) => g.tabs.length === 2,
+  )!;
+  const alphaGroup = page.locator(
+    `#navigation .row.collection[data-group="${pair.id}"]`,
+  );
   await alphaGroup.click();
   const details = page.locator("#scope-head");
   await details.getByRole("button", { name: "Lock", exact: true }).click();
@@ -173,15 +186,38 @@ try {
   );
   state = await invoke({ type: "state" });
   assert.equal(state.groups[0].tabs[0].title, "Gamma");
-  // Deleting is immediate; the toast and the toolbar both offer Undo.
-  await page.locator("#navigation .row.collection").first().click();
-  await details
-    .getByRole("button", { name: "Delete all", exact: true })
-    .click();
+  // Deleting moves tabs to the bin at once; the toast and the toolbar both
+  // offer Undo.
+  await page.locator('#navigation [data-scope="recent"]').click();
+  const deleteGamma = async () => {
+    await page.locator("#select-all").check();
+    await page.locator("#delete-selected").click();
+    await page.waitForFunction(
+      () => document.querySelectorAll(".tab-row").length === 0,
+    );
+  };
+  await deleteGamma();
+  assert.equal(
+    await page.locator("#status-text").textContent(),
+    "Moved 1 tab to the bin.",
+  );
+  await page.locator("#undo").click();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".tab-row").length === 1,
+  );
+  // The bin lists the deleted tab with its time left and puts it back.
+  await deleteGamma();
+  await page.locator('#navigation [data-scope="bin"]').click();
+  await page.waitForFunction(
+    () =>
+      document.querySelector(".tab-row .tab-left")?.textContent === "30d left",
+  );
+  await page.locator(".tab-row .bin-restore").click();
   await page.waitForFunction(
     () => document.querySelectorAll(".tab-row").length === 0,
   );
-  await page.locator("#undo").click();
+  assert.equal((await invoke({ type: "state" })).trash?.length, 0);
+  await page.locator('#navigation [data-scope="recent"]').click();
   await page.waitForFunction(
     () => document.querySelectorAll(".tab-row").length === 1,
   );
@@ -203,6 +239,27 @@ try {
   );
   assert.equal(backup[0].tabs[0].title, "Gamma");
   await page.locator("#transfer .close").click();
+  // A long list mounts its rows wherever it is scrolled to.
+  await invoke({
+    type: "import",
+    text: Array.from(
+      { length: 300 },
+      (_, i) => `https://example.com/long-${i} | Long ${i}`,
+    ).join("\n"),
+  });
+  await page.locator('#navigation [data-scope="all"]').click();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".tab-row").length > 1,
+  );
+  await page.locator("#groups").evaluate((list) => {
+    list.scrollTop = list.scrollHeight / 2;
+  });
+  await page.waitForFunction(() => {
+    const box = document.querySelector("#groups")!.getBoundingClientRect();
+    return !!document
+      .elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      ?.closest(".tab-row");
+  });
   await page.screenshot({ path: path.join(artifactDir, "desktop.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(
@@ -212,11 +269,21 @@ try {
     true,
   );
   await page.screenshot({ path: path.join(artifactDir, "mobile.png") });
+  // On a short screen a dialog stays on screen and scrolls.
+  await page.setViewportSize({ width: 390, height: 300 });
+  await page.locator("#transfer-open").click();
+  assert.ok(
+    await page.locator("#transfer").evaluate((popup) => {
+      const box = popup.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight;
+    }),
+  );
+  await page.locator("#transfer .close").click();
   const windows = await worker.evaluate(async () => chrome.windows.getAll());
   assert.equal(windows.length, 2);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: Helium UI capture, pinned exclusion, window isolation, single/selected restore, import, search, lock, delete/undo, persistence, settings, backup, responsive layout; no page errors.",
+    "PASS: Helium UI capture, pinned exclusion, window isolation, single/selected restore, import, search, lock, delete/undo, persistence, settings, backup, long-list scrolling, responsive layout; no page errors.",
   );
 } finally {
   await context.close();

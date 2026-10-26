@@ -1,13 +1,14 @@
 import tseslint from "typescript-eslint";
 import js from "@eslint/js";
 import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
   { ignores: ["node_modules/**", "dist/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["**/*.{js,mjs,ts}"],
+    files: ["**/*.{js,mjs,ts,tsx}"],
     languageOptions: {
       globals: { ...globals.browser, ...globals.webextensions },
     },
@@ -21,7 +22,7 @@ export default [
     },
   },
   {
-    files: ["**/*.ts"],
+    files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -35,6 +36,31 @@ export default [
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-return": "error",
+    },
+  },
+  {
+    files: ["src/manager/**/*.{ts,tsx}"],
+    ...reactHooks.configs.flat["recommended-latest"],
+  },
+  // The page never writes HTML strings into the DOM. scripts/lint-extension.ts
+  // relies on this to excuse react-dom's own innerHTML in manage.js.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        ...["innerHTML", "outerHTML", "insertAdjacentHTML"].map((property) => ({
+          property,
+          message: "Build DOM with React or createElement instead.",
+        })),
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message: "Build DOM with React instead.",
+        },
+      ],
     },
   },
   {

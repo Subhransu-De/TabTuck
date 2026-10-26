@@ -6,211 +6,25 @@
     <title>TabTuck</title>
     <link rel="stylesheet" href="manage.css" />
     <link rel="icon" href="../icons/48.png" />
+    <script type="module" src="manage.js"></script>
   </head>
   <body>
-    <div class="app" id="app">
-      <svg id="vine" class="vine" aria-hidden="true"></svg>
-      <aside class="col col-1" id="col-1" aria-label="Library">
-        <div class="head brand-head">
-          <div class="brand">
-            <img src="../icons/48.png" alt="" />
-            <span class="brand-name">TabTuck</span>
-            <button id="theme-toggle" class="icon-button" type="button">
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-              >
-                <circle cx="12" cy="12" r="8" />
-                <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" />
-              </svg>
-            </button>
+    <script src="boot.js"></script>
+    <!-- The panels paint at once; React replaces them with the page. -->
+    <div id="root">
+      <div class="app" aria-busy="true">
+        <aside class="col">
+          <div class="head brand-head">
+            <div class="brand">
+              <img src="../icons/48.png" alt="" /><span class="brand-name"
+                >TabTuck</span
+              ><span class="shell-button"></span>
+            </div>
           </div>
-          <p id="summary">Loading your library…</p>
-        </div>
-        <button id="save-window" class="tuck" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          <span>Save this window</span>
-        </button>
-        <nav id="navigation" class="list" aria-label="Saved tabs"></nav>
-        <div class="foot foot-1">
-          <div class="links">
-            <button id="transfer-open" type="button">Import / Export</button
-            ><button id="settings-open" type="button">Options</button>
-          </div>
-        </div>
-      </aside>
-      <section class="col col-2" id="col-2" aria-labelledby="scope-title">
-        <header class="head" id="scope-head"></header>
-        <nav class="list" id="facets" aria-label="Sites and save times"></nav>
-      </section>
-      <main class="col col-3" id="col-3">
-        <header class="head head-3">
-          <div class="title-block">
-            <h1 id="heading">Recent</h1>
-            <p id="subheading"></p>
-          </div>
-          <label class="search">
-            <svg
-              class="search-icon"
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-            >
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="m16 16 4.5 4.5" />
-            </svg>
-            <input
-              id="search"
-              type="search"
-              placeholder="Search saved tabs"
-              aria-label="Search saved tabs"
-              autocomplete="off"
-            /><kbd>/</kbd>
-          </label>
-        </header>
-        <div class="list-head" id="list-head">
-          <label class="select-all"
-            ><input type="checkbox" id="select-all" /><span
-              >Select all</span
-            ></label
-          >
-          <span id="list-meta"></span>
-          <button id="restore-all" type="button">Restore all</button
-          ><button id="undo" type="button">Undo delete</button>
-        </div>
-        <div class="list" id="groups"></div>
-        <div class="foot strip">
-          <div id="selection" hidden>
-            <span id="selected-count"></span>
-            <button id="restore-selected" class="primary" type="button">
-              Restore</button
-            ><button id="move-selected" type="button">Move</button
-            ><button id="copy-selected" type="button">Copy links</button
-            ><button id="delete-selected" class="danger" type="button">
-              Delete</button
-            ><button id="clear-selected" type="button">Clear</button>
-          </div>
-          <p id="hint">
-            Click a title to restore it here. <kbd>Ctrl</kbd>-click keeps a copy
-            saved. <kbd>Shift</kbd>-click selects a range.
-          </p>
-          <div id="status" role="status" hidden>
-            <span id="status-text"></span
-            ><button id="status-undo" type="button" hidden>Undo</button>
-          </div>
-        </div>
-      </main>
-    </div>
-    <dialog id="transfer" aria-labelledby="transfer-title">
-      <form method="dialog">
-        <button class="close" aria-label="Close">×</button>
-        <h2 id="transfer-title">Import / Export</h2>
-        <textarea
-          id="import-text"
-          aria-label="Import text"
-          placeholder="https://example.com/ | Example Domain&#10;https://developer.mozilla.org/ | MDN Web Docs&#10;&#10;https://news.ycombinator.com/ | Hacker News"
-        ></textarea
-        ><input
-          type="file"
-          id="import-file"
-          accept=".txt,.json,text/plain,application/json"
-        />
-        <div class="dialog-actions">
-          <button type="button" id="import" class="primary">Import tabs</button
-          ><button type="button" id="export-json">Backup as JSON</button
-          ><button type="button" id="export-text">Export as text</button>
-        </div>
-        <p id="import-result" role="status"></p>
-      </form>
-    </dialog>
-    <dialog id="settings" aria-labelledby="settings-title">
-      <form method="dialog">
-        <button class="close" aria-label="Close">×</button>
-        <h2 id="settings-title">Options</h2>
-        <label class="option"
-          >Keep a tab in TabTuck after opening it
-          <input
-            type="checkbox"
-            class="switch"
-            role="switch"
-            data-setting="keepRestored" /></label
-        ><label class="option"
-          >Skip URLs already saved (close the duplicate tab)
-          <input
-            type="checkbox"
-            class="switch"
-            role="switch"
-            data-setting="deduplicate"
-        /></label>
-        <div class="shortcuts-row">
-          <p id="command-status"></p>
-          <button id="shortcuts" type="button">Change shortcuts</button>
-        </div>
-        <p class="privacy-note">
-          Saved tabs stay on this device and are never sent anywhere.
-          <a
-            href="https://github.com/Subhransu-De/TabTuck/blob/main/wiki/privacy.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Privacy policy</a
-          >
-        </p>
-        <div class="dialog-actions">
-          <button type="button" id="settings-save" class="primary">Save</button>
-        </div>
-      </form>
-    </dialog>
-    <dialog
-      id="consent"
-      aria-labelledby="consent-title"
-      aria-describedby="consent-summary"
-    >
-      <img class="consent-mark" src="../icons/128.png" alt="" />
-      <h2 id="consent-title" tabindex="-1">Before you save tabs</h2>
-      <p id="consent-summary">
-        TabTuck saves the address and title of each tab you choose to save, so
-        you can find it and restore it later.
-      </p>
-      <ul class="consent-facts">
-        <li>Everything stays in this browser, on this device.</li>
-        <li>No account, no tracking, and no network requests.</li>
-        <li>Your tabs are never sent or shared with anyone.</li>
-        <li>Delete them any time, or remove TabTuck to erase everything.</li>
-      </ul>
-      <div class="consent-actions">
-        <a
-          href="https://github.com/Subhransu-De/TabTuck/blob/main/wiki/privacy.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          >Read the privacy policy</a
-        >
-        <button id="consent-agree" type="button" class="primary">
-          Agree and continue
-        </button>
+        </aside>
+        <section class="col"></section>
+        <main class="col"></main>
       </div>
-    </dialog>
-    <dialog id="prompt" aria-labelledby="prompt-title">
-      <form id="prompt-form">
-        <h2 id="prompt-title"></h2>
-        <p id="prompt-description"></p>
-        <input id="prompt-input" aria-label="Name" /><select
-          id="prompt-select"
-          aria-label="Destination"
-        ></select>
-        <fieldset id="folder-icons" hidden></fieldset>
-        <div class="dialog-actions">
-          <button type="button" id="prompt-cancel">Cancel</button
-          ><button type="submit" class="primary">Confirm</button>
-        </div>
-      </form>
-    </dialog>
-    <script type="module" src="manage.js"></script>
+    </div>
   </body>
 </html>

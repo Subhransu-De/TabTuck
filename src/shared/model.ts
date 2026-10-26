@@ -4,7 +4,11 @@ export const defaults: Settings = {
   deduplicate: false,
   theme: "system",
   dataNotice: false,
+  binHours: 30 * 24,
 };
+export const HOUR = 3_600_000;
+// The bin keeps deleted tabs for an hour at least and a year at most.
+export const binLimits = { min: 1, max: 365 * 24 };
 export const uid = () => crypto.randomUUID();
 export const capturePrefix = "capture:";
 export function groupBySites(groups: TabGroup[]): TabGroup[] {
