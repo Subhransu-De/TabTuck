@@ -151,12 +151,11 @@ try {
     .click({ position: { x: 300, y: 10 }, modifiers: ["Shift"] });
   assert.equal(await page.locator(".tab-row.selected").count(), 1);
   await page.keyboard.press("Escape");
-  // The sidebar lists sites; collections show inside their folder. The Alpha
+  // A collection outside any folder has its own row in the sidebar. The Alpha
   // and Beta collection opens its details in the second column.
   const pair = (await invoke({ type: "state" })).groups.find(
     (g) => g.tabs.length === 2,
   )!;
-  await invoke({ type: "update", groupId: pair.id, patch: { folder: "Test" } });
   const alphaGroup = page.locator(
     `#navigation .row.collection[data-group="${pair.id}"]`,
   );

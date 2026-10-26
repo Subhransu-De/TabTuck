@@ -83,15 +83,18 @@ const CollectionRow = memo(function CollectionRow({
   count,
   on,
   dim,
-  unfolding,
-  folding,
+  inFolder = false,
+  unfolding = false,
+  folding = false,
 }: {
   group: TabGroup;
   count: number;
   on: boolean;
   dim: boolean;
-  unfolding: boolean;
-  folding: boolean;
+  // Set for the rows under a folder, which sit indented and fold with it.
+  inFolder?: boolean;
+  unfolding?: boolean;
+  folding?: boolean;
 }) {
   // Only rows coming into view unfold; rows already shown stay put.
   const [unfold] = useState(unfolding);
@@ -101,7 +104,8 @@ const CollectionRow = memo(function CollectionRow({
     <button
       type="button"
       className={cn(
-        "row collection in-folder",
+        "row collection",
+        inFolder && "in-folder",
         unfold && "unfolding",
         folding && "folding",
         on && "is-current",
@@ -193,6 +197,7 @@ function Folder({
             count={views.live([g]).length}
             on={scope === `group:${g.id}`}
             dim={!!hits && !hits.groups.has(g.id)}
+            inFolder
             unfolding={unfolding}
             folding={folding}
           />
@@ -222,6 +227,11 @@ export const Navigation = memo(function Navigation({
   hits: Hits | null;
 }) {
   const folderList = useMemo(() => (views ? folders(views) : []), [views]);
+  // Collections outside any folder follow the folders, newest first.
+  const unfiled = useMemo(
+    () => (views ? views.lib.ordered.filter((g) => !g.folder) : []),
+    [views],
+  );
   const siteList = useMemo(() => (views ? siteViews(views.all) : []), [views]);
   // Hundreds of sites are windowed; the current and the focused one stay.
   const list = useRef<HTMLElement>(null);
@@ -300,7 +310,7 @@ export const Navigation = memo(function Navigation({
         on={scope === "bin"}
       />
       <div className="eyebrow">
-        <span>Folders</span>
+        <span>Collections</span>
         <button
           type="button"
           className={newFolderClass}
@@ -322,6 +332,15 @@ export const Navigation = memo(function Navigation({
           folding={folding === f.name}
           unfolding={unfolding === f.name}
           hits={hits}
+        />
+      ))}
+      {unfiled.map((g) => (
+        <CollectionRow
+          key={g.id}
+          group={g}
+          count={views.live([g]).length}
+          on={scope === `group:${g.id}`}
+          dim={!!hits && !hits.groups.has(g.id)}
         />
       ))}
       <div className="eyebrow">

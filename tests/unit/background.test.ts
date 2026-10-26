@@ -303,6 +303,21 @@ test("the bin erases tabs once their time is up", async () => {
   await dispatch({ type: "settings", settings: { binHours: 1e9 } });
   expect(stored.settings.binHours).toBe(365 * 24);
 });
+test("a stale page cannot bring back tabs whose bin time is up", async () => {
+  const expired = () =>
+    group([{ id: uid(), url: "https://example.com/", title: "Expired" }]);
+  stored.settings.binHours = 1;
+  const binned = expired();
+  stored.trash = [{ groups: [binned], at: Date.now() - 2 * 3_600_000 }];
+  await dispatch({ type: "binRestore", ids: [binned.tabs[0].id] });
+  expect(stored.groups.some((g) => g.id === binned.id)).toBe(false);
+  expect(stored.trash).toEqual([]);
+  const undone = expired();
+  stored.trash = [{ groups: [undone], at: Date.now() - 2 * 3_600_000 }];
+  await dispatch({ type: "undo" });
+  expect(stored.groups.some((g) => g.id === undone.id)).toBe(false);
+  expect(stored.trash).toEqual([]);
+});
 test("libraries saved before the bin get its default time", async () => {
   delete (stored.settings as Partial<State["settings"]>).binHours;
   const state = (await dispatch({ type: "state" })) as State;

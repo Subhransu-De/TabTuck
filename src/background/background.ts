@@ -402,6 +402,9 @@ export async function dispatch(
   if (m.type === "capture") return capture(m.mode, windowId);
   if (m.type === "restore") return restore(m, windowId);
   const state = await read();
+  // Deletes past their bin time go first, so a page that still shows them
+  // cannot restore or undo what is already erased.
+  purgeBin(state);
   const g = state.groups.find((g) => g.id === m.groupId);
   if (m.type === "settings") {
     for (const key of ["keepRestored", "deduplicate", "dataNotice"] as const)
