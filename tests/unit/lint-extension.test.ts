@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { isFirefoxOnly, parseReport } from "../../scripts/lint-extension.ts";
+import {
+  isFirefoxOnly,
+  isReactDom,
+  parseReport,
+} from "../../scripts/lint-extension.ts";
 
 test("Chromium exceptions never hide other invalid permissions or source errors", () => {
   expect(
@@ -22,6 +26,26 @@ test("Chromium exceptions never hide other invalid permissions or source errors"
   expect(isFirefoxOnly({ file: "manifest.json", code: "JSON_INVALID" })).toBe(
     false,
   );
+});
+
+test("the react-dom exception covers only innerHTML in manage.js", () => {
+  const issue = {
+    file: "manager/manage.js",
+    code: "UNSAFE_VAR_ASSIGNMENT",
+    message: "Unsafe assignment to innerHTML",
+  };
+  expect(isReactDom(issue)).toBe(true);
+  expect(isReactDom({ ...issue, file: "manager/dialogs.js" })).toBe(false);
+  expect(isReactDom({ ...issue, file: "background/background.js" })).toBe(
+    false,
+  );
+  expect(
+    isReactDom({ ...issue, message: "Unsafe assignment to outerHTML" }),
+  ).toBe(false);
+  expect(
+    isReactDom({ ...issue, message: "Unsafe call to import for argument 0" }),
+  ).toBe(false);
+  expect(isReactDom({ ...issue, code: "DANGEROUS_EVAL" })).toBe(false);
 });
 
 test("extension reports reject malformed JSON shapes before filtering diagnostics", () => {

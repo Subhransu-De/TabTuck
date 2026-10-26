@@ -258,6 +258,73 @@ test("delete is recoverable across background restarts", async () => {
   await dispatch({ type: "undo" });
   expect(stored.groups[0].tabs[0].title).toBe("A");
 });
+test("deleted tabs wait in the bin and go back to their collection", async () => {
+  const [a, b, c] = ["A", "B", "C"].map((title) => ({
+    id: uid(),
+    url: `https://example.com/${title}`,
+    title,
+  }));
+  stored.groups = [group([a, b, c], "Reading")];
+  const home = stored.groups[0].id;
+  await dispatch({ type: "delete", ids: [a.id] });
+  await dispatch({ type: "delete", ids: [b.id] });
+  expect(stored.trash!.length).toBe(2);
+  await dispatch({ type: "binRestore", ids: [a.id] });
+  expect(stored.groups[0].tabs.map((t) => t.title)).toEqual(["C", "A"]);
+  expect(stored.trash!.map((e) => e.groups[0].tabs[0].title)).toEqual(["B"]);
+  // A collection deleted whole comes back with its name.
+  await dispatch({ type: "delete" });
+  expect(stored.groups).toEqual([]);
+  await dispatch({ type: "binRestore", ids: [b.id] });
+  expect(stored.groups[0].id).toBe(home);
+  expect(stored.groups[0].name).toBe("Reading");
+  expect(stored.groups[0].tabs.map((t) => t.title)).toEqual(["B"]);
+});
+test("the bin erases tabs once their time is up", async () => {
+  const old = group([{ id: uid(), url: "https://example.com/", title: "Old" }]);
+  const fresh = group([
+    { id: uid(), url: "https://example.org/", title: "Fresh" },
+  ]);
+  const now = Date.now();
+  stored.settings.binHours = 2;
+  stored.trash = [
+    { groups: [fresh], at: now - 1 * 3_600_000 },
+    { groups: [old], at: now - 3 * 3_600_000 },
+  ];
+  // Opening the manager erases what is past its time, in storage too.
+  await dispatch({ type: "state" });
+  expect(stored.trash!.map((e) => e.groups[0].tabs[0].title)).toEqual([
+    "Fresh",
+  ]);
+  // Shortening the time erases what is now too old.
+  await dispatch({ type: "settings", settings: { binHours: 0.4 } });
+  expect(stored.settings.binHours).toBe(1);
+  expect(stored.trash).toEqual([]);
+  await dispatch({ type: "settings", settings: { binHours: 1e9 } });
+  expect(stored.settings.binHours).toBe(365 * 24);
+});
+test("libraries saved before the bin get its default time", async () => {
+  delete (stored.settings as Partial<State["settings"]>).binHours;
+  const state = (await dispatch({ type: "state" })) as State;
+  expect(state.settings.binHours).toBe(30 * 24);
+});
+test("tabs can be erased from the bin one by one or all at once", async () => {
+  const tabs = ["A", "B", "C"].map((title) => ({
+    id: uid(),
+    url: `https://example.com/${title}`,
+    title,
+  }));
+  stored.groups = [group(tabs)];
+  await dispatch({ type: "delete" });
+  await dispatch({ type: "binDelete", ids: [tabs[1].id] });
+  expect(stored.trash![0].groups[0].tabs.map((t) => t.title)).toEqual([
+    "A",
+    "C",
+  ]);
+  await dispatch({ type: "binDelete" });
+  expect(stored.trash).toEqual([]);
+  expect(stored.groups).toEqual([]);
+});
 test("concurrent imports are serialized without losing groups", async () => {
   await Promise.all([
     serial(() => dispatch({ type: "import", text: "https://example.com/" })),

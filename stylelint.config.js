@@ -8,11 +8,11 @@ export default {
     "no-descending-specificity": null,
     "at-rule-no-unknown": [
       true,
-      { ignoreAtRules: ["apply", "source", "theme"] },
+      { ignoreAtRules: ["apply", "source", "theme", "custom-variant"] },
     ],
     "at-rule-prelude-no-invalid": [
       true,
-      { ignoreAtRules: ["apply", "source", "theme"] },
+      { ignoreAtRules: ["apply", "source", "theme", "custom-variant"] },
     ],
   },
 };

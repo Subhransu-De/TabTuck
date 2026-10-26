@@ -41,7 +41,7 @@ try {
     `chrome-extension://${new URL(worker.url()).host}/manager/manage.html`,
   );
   await page.waitForFunction(() =>
-    document.querySelector("#summary")?.textContent?.includes("saved"),
+    document.querySelector(`[data-scope="all"] .count`),
   );
   // First use: agree to the data notice before anything can be saved.
   await page.locator("#consent-agree").click();

@@ -25,10 +25,10 @@ Organize
 Restore
 • Open TabTuck with Alt+Q or the toolbar icon.
 • Restore one link or a whole collection in the current window.
-• Undo a delete you didn't mean to make.
+• Deleted tabs wait in the Bin for 30 days, or the time you choose, so you can restore them.
 
 Move your data
-• Import OneTab text exports.
+• Import tabs from a list of links, or restore a TabTuck backup.
 • Back up as JSON or export as text.
 
 Light and dark themes. Shortcuts can be changed on the browser's extension shortcuts page.

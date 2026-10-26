@@ -1,4 +1,5 @@
 import type {
+  BinEntry,
   State,
   SavedTab,
   TabGroup,
@@ -10,6 +11,8 @@ import type {
 } from "../shared/types.ts";
 import {
   defaults,
+  binLimits,
+  HOUR,
   uid,
   group,
   safeUrl,
@@ -29,6 +32,7 @@ const captureKeys = new Set<string>();
 let urlIndex: { state: State; urls: Set<string> } | undefined;
 function normalize(state?: State): State {
   if (state) {
+    state.settings = { ...defaults, ...state.settings };
     for (const g of [
       ...state.groups,
       ...(state.trash || []).flatMap((entry) => entry.groups),
@@ -39,6 +43,50 @@ function normalize(state?: State): State {
   return (
     state || { version: 1, groups: [], settings: { ...defaults }, trash: [] }
   );
+}
+// The bin also stops at this many tabs, dropping its oldest deletes first, so
+// it cannot crowd the library out of extension storage. The newest delete is
+// always kept whole.
+const BIN_TAB_LIMIT = 10_000;
+// Drops deletes older than the user's bin time. Returns whether any went.
+function purgeBin(state: State, now = Date.now()) {
+  const trash = state.trash ?? [];
+  const keep = state.settings.binHours * HOUR;
+  let room = BIN_TAB_LIMIT;
+  const next = trash.filter((entry, i) => {
+    if (now - entry.at >= keep) return false;
+    const size = entry.groups.reduce((n, g) => n + g.tabs.length, 0);
+    if (i > 0 && size > room) return false;
+    room -= size;
+    return true;
+  });
+  state.trash = next;
+  return next.length !== trash.length;
+}
+// Puts deleted tabs back: into their collection if it still exists, else as
+// that collection again.
+function putBack(state: State, groups: TabGroup[]) {
+  for (const item of groups) {
+    const existing = state.groups.find((g) => g.id === item.id);
+    if (existing) {
+      const ids = new Set(existing.tabs.map((t) => t.id));
+      existing.tabs.push(...item.tabs.filter((t) => !ids.has(t.id)));
+    } else state.groups.unshift(item);
+  }
+}
+// Takes the given tabs out of the bin and returns them with their collections.
+function takeFromBin(state: State, ids: Set<string>) {
+  const taken: TabGroup[] = [];
+  for (const entry of state.trash ?? []) {
+    for (const item of entry.groups) {
+      const tabs = item.tabs.filter((t) => ids.has(t.id));
+      if (tabs.length) taken.push({ ...item, tabs });
+      item.tabs = item.tabs.filter((t) => !ids.has(t.id));
+    }
+    entry.groups = entry.groups.filter((g) => g.tabs.length);
+  }
+  state.trash = (state.trash ?? []).filter((entry) => entry.groups.length);
+  return taken;
 }
 export async function read(): Promise<State> {
   if (cached && chrome.storage.onChanged) return cached;
@@ -72,6 +120,7 @@ export async function read(): Promise<State> {
   return state;
 }
 async function write(state: State) {
+  purgeBin(state);
   state.revision = uid();
   const captureInfo: CaptureInfo = {
     base: state.revision,
@@ -340,7 +389,11 @@ export async function dispatch(
   m: Message,
   sender: chrome.runtime.MessageSender = {},
 ) {
-  if (m.type === "state") return read();
+  if (m.type === "state") {
+    const state = await read();
+    if (purgeBin(state)) await write(state);
+    return state;
+  }
   const windowId =
     sender.tab?.windowId ?? (await chrome.windows.getLastFocused()).id;
   if (windowId === undefined)
@@ -356,6 +409,12 @@ export async function dispatch(
         state.settings[key] = m.settings[key];
     if (typeof m.settings.theme === "string")
       state.settings.theme = m.settings.theme;
+    const hours = m.settings.binHours;
+    if (typeof hours === "number" && Number.isFinite(hours))
+      state.settings.binHours = Math.min(
+        binLimits.max,
+        Math.max(binLimits.min, Math.round(hours)),
+      );
   } else if (m.type === "import") {
     const groups = parseImport(m.text);
     state.groups.unshift(...groups);
@@ -387,21 +446,18 @@ export async function dispatch(
       item.tabs = item.tabs.filter((t) => wanted && !wanted.has(t.id));
     }
     state.groups = state.groups.filter((g) => g.tabs.length);
-    if (removed.length)
-      state.trash = [
-        { groups: removed, at: Date.now() },
-        ...(state.trash || []),
-      ].slice(0, 20);
+    if (removed.length) {
+      const entry: BinEntry = { groups: removed, at: Date.now() };
+      state.trash = [entry, ...(state.trash || [])];
+    }
   } else if (m.type === "undo") {
     const entry = state.trash?.shift();
-    if (entry)
-      for (const item of entry.groups) {
-        const existing = state.groups.find((g) => g.id === item.id);
-        if (existing) {
-          const ids = new Set(existing.tabs.map((t) => t.id));
-          existing.tabs.push(...item.tabs.filter((t) => !ids.has(t.id)));
-        } else state.groups.unshift(item);
-      }
+    if (entry) putBack(state, entry.groups);
+  } else if (m.type === "binRestore") {
+    putBack(state, takeFromBin(state, new Set(m.ids)));
+  } else if (m.type === "binDelete") {
+    if (m.ids) takeFromBin(state, new Set(m.ids));
+    else state.trash = [];
   } else if (m.type === "move") {
     const target = state.groups.find((g) => g.id === m.targetId);
     if (target?.locked) throw new Error("Unlock the destination group first.");

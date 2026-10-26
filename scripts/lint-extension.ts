@@ -51,6 +51,17 @@ export function isFirefoxOnly(issue: Issue) {
     )
   );
 }
+// react-dom, bundled into manage.js, sets innerHTML in its own DOM code. The
+// page's source never does: ESLint forbids innerHTML and
+// dangerouslySetInnerHTML in src/, so in manage.js this warning can only
+// come from React.
+export function isReactDom(issue: Issue) {
+  return (
+    issue.file === "manager/manage.js" &&
+    issue.code === "UNSAFE_VAR_ASSIGNMENT" &&
+    issue.message === "Unsafe assignment to innerHTML"
+  );
+}
 
 if (import.meta.main) {
   const child = Bun.spawn(
@@ -69,12 +80,14 @@ if (import.meta.main) {
   const status = await child.exited;
   const report = parseReport(output);
   const issues = [...report.errors, ...report.warnings];
-  const failures = issues.filter((issue) => !isFirefoxOnly(issue));
+  const failures = issues.filter(
+    (issue) => !isFirefoxOnly(issue) && !isReactDom(issue),
+  );
   if (failures.length || (status !== 0 && !report.errors.length)) {
     console.error(JSON.stringify(failures.length ? failures : report, null, 2));
     process.exit(1);
   }
   console.log(
-    `Extension validation passed (${issues.length} documented Firefox-only diagnostics excluded).`,
+    `Extension validation passed (${issues.length} documented Firefox-only and react-dom diagnostics excluded).`,
   );
 }

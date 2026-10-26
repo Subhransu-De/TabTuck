@@ -23,13 +23,20 @@ export interface Settings {
   theme: string;
   // The user agreed to the in-product data notice; saving waits for it.
   dataNotice: boolean;
+  // How long deleted tabs wait in the bin before they are erased.
+  binHours: number;
+}
+// One delete: the tabs it removed, with their collections, newest first.
+export interface BinEntry {
+  groups: TabGroup[];
+  at: number;
 }
 export interface State {
   version: number;
   revision?: string;
   groups: TabGroup[];
   settings: Settings;
-  trash?: { groups: TabGroup[]; at: number }[];
+  trash?: BinEntry[];
 }
 export interface CaptureInfo {
   base?: string;
@@ -76,6 +83,8 @@ export type Message = (
   | { type: "update"; groupId: string; patch: GroupPatch }
   | ({ type: "delete" } & Selection)
   | { type: "undo" }
+  | { type: "binRestore"; ids: string[] }
+  | { type: "binDelete"; ids?: string[] }
   | {
       type: "move";
       ids: string[];
