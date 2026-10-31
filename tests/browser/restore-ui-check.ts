@@ -182,15 +182,13 @@ try {
     // counts a repeat within half a second as part of a double-click.
     await page.waitForTimeout(250);
     await page.evaluate(() =>
-      document
-        .querySelector<HTMLAnchorElement>(".tab-row a")!
-        .dispatchEvent(
-          new MouseEvent("click", {
-            bubbles: true,
-            cancelable: true,
-            detail: 2,
-          }),
-        ),
+      document.querySelector<HTMLAnchorElement>(".tab-row a")!.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          detail: 2,
+        }),
+      ),
     );
     assert.equal(await page.evaluate(() => window.restoreRequests.length), 5);
     console.log(

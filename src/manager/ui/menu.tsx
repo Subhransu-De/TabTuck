@@ -70,6 +70,9 @@ export function MenuButton({
           menu.current!.querySelector<HTMLElement>(".menu-item")?.focus();
         }}
         onKeyDown={(event) => {
+          // The browser closes the menu on Escape; the page must not also
+          // take it to clear its search or selection.
+          if (event.key === "Escape") event.stopPropagation();
           if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
           event.preventDefault();
           const all = [

@@ -160,6 +160,16 @@ try {
     `#navigation .row.collection[data-group="${pair.id}"]`,
   );
   await alphaGroup.click();
+  // Escape in the restore menu closes the menu and leaves the selection.
+  await page.locator("#select-all").check();
+  await page.getByRole("button", { name: "More ways to restore" }).click();
+  const restoreMenu = page.getByRole("menu", { name: "More ways to restore" });
+  await restoreMenu.waitFor();
+  await page.keyboard.press("Escape");
+  await restoreMenu.waitFor({ state: "hidden" });
+  assert.equal(await page.locator(".tab-row.selected").count(), 2);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".tab-row.selected").count(), 0);
   const details = page.locator("#scope-head");
   const lock = details.getByRole("switch", { name: "Locked", exact: true });
   await lock.click();
