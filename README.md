@@ -47,7 +47,7 @@ make install
 make check
 ```
 
-`make check` runs linting, formatting checks, unit tests, strict TypeScript checking, the build, extension validation, and the package audit. The build creates `dist/TabTuck` and `dist/tabtuck.zip` (web-ext always writes a lowercase file name). CI also runs secret scanning and browser tests.
+`make check` runs linting, formatting checks, unit tests, strict TypeScript checking, the build, extension validation, and the package audit. The build creates `dist/TabTuck` and `dist/tabtuck.zip` (web-ext always writes a lowercase file name). CI also runs secret scanning and browser tests. Pull requests with a user-visible change add an entry under Unreleased in [CHANGELOG.md](CHANGELOG.md).
 
 The Makefile is the command entry point; its recipes use the portable Bun scripts in `package.json`. Bun commands remain available on machines without Make. Node.js is also required by the extension packaging and validation tools.
 
@@ -73,6 +73,6 @@ TypeScript linting rejects explicit `any` and unsafe uses of types inferred as `
 
 Use `make typecheck` for strict checking of extension code, scripts, and tests. Use `make test` for unit tests and `make lint` for linting. Browser checks use `make test-browser` and `make test-restore`, which build first. Set `HELIUM_EXECUTABLE` to an extension-capable Chromium executable and `TABTUCK_TEST_DIR` to an isolated artifact directory outside the repository. Use a separate directory for each browser check. Never point tests at a personal browser profile.
 
-Releases are built and published by a tag-triggered GitHub Actions workflow; see [wiki/releasing.md](wiki/releasing.md). The Chrome Web Store listing text is in [store/listing.md](store/listing.md).
+Releases are built and published by a GitHub Actions workflow that you run by hand on `main`; see [wiki/releasing.md](wiki/releasing.md). The Chrome Web Store listing text is in [store/listing.md](store/listing.md).
 
 Saved tabs are stored locally in the browser's extension storage. Export a backup before uninstalling the extension or moving to a different browser profile.
