@@ -38,6 +38,24 @@ try {
     () =>
       document.querySelector(`[data-scope="all"] .count`)?.textContent === "0",
   );
+  // Body text is Inter at 15px on a 22px line.
+  assert.deepEqual(
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      const style = getComputedStyle(document.body);
+      return [
+        style.fontFamily.split(",")[0]!.replaceAll('"', "").trim(),
+        style.fontSize,
+        style.lineHeight,
+        [...document.fonts].some(
+          (face) =>
+            face.family.replaceAll('"', "") === "Inter" &&
+            face.status === "loaded",
+        ),
+      ];
+    }),
+    ["Inter", "15px", "22px", true],
+  );
   // First use: agree to the data notice before anything can be saved.
   await page.locator("#consent-agree").click();
   await page.locator("#consent").waitFor({ state: "hidden" });

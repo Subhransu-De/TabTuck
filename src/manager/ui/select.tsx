@@ -26,7 +26,7 @@ export function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex h-7.5 items-center justify-between gap-2 rounded-lg border-0 bg-secondary py-1 pr-2 pl-2.5 text-[14px] font-medium whitespace-nowrap shadow-[inset_0_0_0_1px_var(--tt-line-2)] transition-colors outline-none hover:bg-control focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-muted-foreground *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "flex h-7.5 items-center justify-between gap-2 rounded-lg border-0 bg-secondary py-1 pr-2 pl-2.5 text-[15px] font-medium whitespace-nowrap shadow-[inset_0_0_0_1px_var(--tt-line-2)] transition-colors outline-none hover:bg-control focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-muted-foreground *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className,
       )}
       {...props}
@@ -70,7 +70,7 @@ export function SelectItem({ children, ...props }: SelectPrimitive.Item.Props) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
-      className="relative flex h-7.5 w-full cursor-default items-center gap-2.5 rounded-md pr-8 pl-2 text-[14px] font-medium outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+      className="relative flex h-7.5 w-full cursor-default items-center gap-2.5 rounded-md pr-8 pl-2 text-[15px] font-medium outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
       {...props}
     >
       <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
