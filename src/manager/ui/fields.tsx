@@ -1,15 +1,16 @@
-// shadcn/ui Luma text fields and separator, on native elements. A textarea
-// takes its text size from className.
+// shadcn/ui text fields and separator, on native elements, drawn as wells
+// with a hairline that turns to the focus ink. A textarea takes its text size
+// from className.
 import type { ComponentProps } from "react";
 import { cn } from "./cn.ts";
 
 const field =
-  "w-full min-w-0 border border-transparent bg-input/50 transition-[color,box-shadow,background-color] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
+  "w-full min-w-0 border-0 bg-well text-foreground shadow-[inset_0_0_0_1px_var(--tt-line-2)] transition-shadow outline-none placeholder:text-ink-3 focus-visible:shadow-[inset_0_0_0_1px_var(--tt-focus)] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:shadow-[inset_0_0_0_1px_var(--destructive)]";
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       data-slot="input"
-      className={cn(field, "h-9 rounded-3xl px-3 py-1 text-sm", className)}
+      className={cn(field, "h-8 rounded-lg px-2.5 text-[14px]", className)}
       {...props}
     />
   );
@@ -18,13 +19,13 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return (
     <textarea
       data-slot="textarea"
-      className={cn(field, "flex min-h-16 rounded-2xl px-3 py-3", className)}
+      className={cn(field, "flex min-h-16 rounded-lg px-3 py-2.5", className)}
       {...props}
     />
   );
 }
-// A native select dressed as Luma's select trigger. Long lists, such as
-// thousands of collections, open at once in the browser's own menu.
+// A native select dressed as a select trigger. Long lists, such as thousands
+// of collections, open at once in the browser's own menu.
 export function NativeSelect({
   className,
   ...props
@@ -35,7 +36,7 @@ export function NativeSelect({
         data-slot="native-select"
         className={cn(
           field,
-          "h-9 appearance-none rounded-3xl py-1 pr-9 pl-3 text-sm",
+          "h-8 appearance-none rounded-lg py-1 pr-9 pl-2.5 text-[14px] font-medium",
           className,
         )}
         {...props}

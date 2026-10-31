@@ -161,8 +161,11 @@ try {
   );
   await alphaGroup.click();
   const details = page.locator("#scope-head");
-  await details.getByRole("button", { name: "Lock", exact: true }).click();
-  await details.getByRole("button", { name: "Unlock", exact: true }).waitFor();
+  const lock = details.getByRole("switch", { name: "Locked", exact: true });
+  await lock.click();
+  await details
+    .locator('[role="switch"][data-action="lock"][aria-checked="true"]')
+    .waitFor();
   const lockedId = await alphaGroup.getAttribute("data-group");
   assert.ok(lockedId);
   await invoke({ type: "restore", groupId: lockedId });
@@ -177,8 +180,10 @@ try {
       .tabs.length,
     2,
   );
-  await details.getByRole("button", { name: "Unlock", exact: true }).click();
-  await details.getByRole("button", { name: "Lock", exact: true }).waitFor();
+  await lock.click();
+  await details
+    .locator('[role="switch"][data-action="lock"][aria-checked="false"]')
+    .waitFor();
   await page.locator("#select-all").check();
   await page.locator("#restore-selected").click();
   await page.waitForFunction(
@@ -230,6 +235,7 @@ try {
   await page.locator("#theme-toggle").click();
   await page.waitForFunction(() => document.body.classList.contains("dark"));
   await page.locator("#transfer-open").click();
+  await page.locator("#transfer-tab-export").click();
   const downloadEvent = page.waitForEvent("download");
   await page.locator("#export-json").click();
   const download = await downloadEvent;

@@ -1,9 +1,13 @@
 // The dialogs, in a bundle of their own that loads the first time one opens.
 // This bundle takes React from manage.js and gets everything with state
 // through props; it imports no module that holds page state.
+//
+// Each dialog is a tray: a title strip, wells for what it holds, and a
+// footer strip with its action.
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { Radio } from "@base-ui/react/radio";
+import { Tabs } from "@base-ui/react/tabs";
 import type { Settings } from "../shared/types.ts";
 import type {
   DialogName,
@@ -18,7 +22,7 @@ import { folderIcons, icon } from "./ui-icons.tsx";
 import { Button, buttonVariants } from "./ui/button.tsx";
 import { Kbd } from "./ui/kbd.tsx";
 import { cn } from "./ui/cn.ts";
-import { Input, NativeSelect, Separator, Textarea } from "./ui/fields.tsx";
+import { Input, NativeSelect, Textarea } from "./ui/fields.tsx";
 import { Switch } from "./ui/switch.tsx";
 import {
   Dialog,
@@ -36,7 +40,6 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogMedia,
   AlertDialogTitle,
 } from "./ui/alert-dialog.tsx";
 
@@ -65,77 +68,140 @@ type Host = DialogsProps["host"];
 
 const PRIVACY =
   "https://github.com/Subhransu-De/TabTuck/blob/main/wiki/privacy.md";
-const link = cn(buttonVariants({ variant: "link", size: "sm" }), "-mx-3");
+const link = cn(
+  buttonVariants({ variant: "ghost", size: "sm" }),
+  "[&_svg]:size-3.5",
+);
+const quiet = buttonVariants({ variant: "outline" });
+
+// Import or Export, as two tabs on one segmented track.
+const tab =
+  "inline-flex h-6.5 flex-1 items-center justify-center rounded-[7px] px-3 font-medium text-ink-2 outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-active:bg-well data-active:text-ink-0 data-active:shadow-[inset_0_0_0_1px_var(--tt-line-2),0_1px_2px_rgb(0_0_0/0.2)]";
 
 function Transfer({ open, host }: { open: boolean; host: Host }) {
   // Kept while the dialog is closed, like the page's own text fields.
   const [text, setText] = useState("");
   const [result, setResult] = useState("");
+  const [panel, setPanel] = useState("import");
   const file = useRef<HTMLInputElement>(null);
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => !next && host.close("transfer")}
     >
-      <DialogContent id="transfer" className="sm:max-w-[560px]">
+      <DialogContent id="transfer" className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle id="transfer-title">Import / Export</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-3">
-          <Textarea
-            id="import-text"
-            aria-label="Import text"
-            className="h-45 resize-y font-mono text-xs leading-normal"
-            placeholder={
-              "https://example.com/ | Example Domain\nhttps://developer.mozilla.org/ | MDN Web Docs\n\nhttps://news.ycombinator.com/ | Hacker News"
-            }
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-          />
-          <input
-            ref={file}
-            type="file"
-            id="import-file"
-            accept=".txt,.json,text/plain,application/json"
-            className="file-input"
-            onChange={async (event) => {
-              const chosen = event.target.files?.[0];
-              if (!chosen) return;
-              if (chosen.size > 50 * 1024 * 1024) {
-                host.toast("Choose a file smaller than 50 MB.");
-                return;
-              }
-              setText(await chosen.text());
-            }}
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            id="import"
-            onClick={() =>
-              host.importText(text, (done) => {
-                setResult(done);
-                setText("");
-                if (file.current) file.current.value = "";
-              })
-            }
-          >
-            Import tabs
-          </Button>
-          <Button id="export-json" variant="outline" onClick={host.exportJson}>
-            Backup as JSON
-          </Button>
-          <Button id="export-text" variant="outline" onClick={host.exportPlain}>
-            Export as text
-          </Button>
-        </DialogFooter>
-        <p
-          id="import-result"
-          role="status"
-          className="-mt-2 text-sm text-muted-foreground empty:hidden"
+        <Tabs.Root
+          value={panel}
+          onValueChange={(next) => setPanel(next as string)}
         >
-          {result}
-        </p>
+          <Tabs.List
+            aria-label="Import or export"
+            className="mb-2 flex gap-0.5 rounded-[10px] bg-recess p-0.75 shadow-[inset_0_0_0_1px_var(--tt-line)]"
+          >
+            <Tabs.Tab id="transfer-tab-import" value="import" className={tab}>
+              Import
+            </Tabs.Tab>
+            <Tabs.Tab id="transfer-tab-export" value="export" className={tab}>
+              Export
+            </Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="import" className="outline-none">
+            <Textarea
+              id="import-text"
+              aria-label="Import text"
+              className="h-40 resize-y font-mono text-[13px] leading-normal"
+              placeholder={
+                "https://example.com/ | Example Domain\nhttps://developer.mozilla.org/ | MDN Web Docs\n\nA blank line starts a new collection."
+              }
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+            />
+            <input
+              ref={file}
+              type="file"
+              id="import-file"
+              accept=".txt,.json,text/plain,application/json"
+              hidden
+              onChange={async (event) => {
+                const chosen = event.target.files?.[0];
+                if (!chosen) return;
+                if (chosen.size > 50 * 1024 * 1024) {
+                  host.toast("Choose a file smaller than 50 MB.");
+                  return;
+                }
+                setText(await chosen.text());
+              }}
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => file.current?.click()}>
+                {icon("upload")}
+                Choose file
+              </Button>
+              <p className="min-w-0 flex-1 truncate px-1 text-ink-2">
+                <span id="import-result" role="status">
+                  {result}
+                </span>
+                {!result && "Text or a TabTuck backup"}
+              </p>
+              <Button
+                id="import"
+                onClick={() =>
+                  host.importText(text, (done) => {
+                    setResult(done);
+                    setText("");
+                    if (file.current) file.current.value = "";
+                  })
+                }
+              >
+                Import tabs
+              </Button>
+            </DialogFooter>
+          </Tabs.Panel>
+          <Tabs.Panel value="export" className="outline-none">
+            <div className="well">
+              <div className="dialog-row">
+                {icon("file-json")}
+                <span className="stack">
+                  <span>Backup</span>
+                  <span className="sub">
+                    Everything, with folders, stars and locks. Import it to
+                    restore.
+                  </span>
+                </span>
+                <Button
+                  id="export-json"
+                  variant="outline"
+                  size="sm"
+                  onClick={host.exportJson}
+                >
+                  {icon("download")}
+                  JSON
+                </Button>
+              </div>
+              <div className="dialog-row">
+                {icon("file-text")}
+                <span className="stack">
+                  <span>Link list</span>
+                  <span className="sub">
+                    One link and title per line, for any other app.
+                  </span>
+                </span>
+                <Button
+                  id="export-text"
+                  variant="outline"
+                  size="sm"
+                  onClick={host.exportPlain}
+                >
+                  {icon("download")}
+                  Text
+                </Button>
+              </div>
+            </div>
+          </Tabs.Panel>
+        </Tabs.Root>
       </DialogContent>
     </Dialog>
   );
@@ -143,18 +209,23 @@ function Transfer({ open, host }: { open: boolean; host: Host }) {
 
 function SwitchRow({
   label,
+  sub,
   checked,
   onCheckedChange,
   setting,
 }: {
   label: string;
+  sub?: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   setting: string;
 }) {
   return (
-    <label className="flex items-center justify-between gap-6 py-4 text-sm leading-snug">
-      {label}
+    <label className="dialog-row">
+      <span className="stack">
+        <span>{label}</span>
+        {sub && <span className="sub">{sub}</span>}
+      </span>
       <Switch
         data-setting={setting}
         checked={checked}
@@ -163,7 +234,7 @@ function SwitchRow({
     </label>
   );
 }
-// "Save the current tab: Alt+C · Show TabTuck: Alt+Q", with keys as Kbd.
+// One row per command: what it does, then its keys.
 function Shortcuts() {
   const [commands, setCommands] = useState<chrome.commands.Command[]>();
   useEffect(() => {
@@ -174,19 +245,24 @@ function Shortcuts() {
     };
   }, []);
   return (
-    <p id="command-status" className="leading-relaxed text-muted-foreground">
-      {commands?.map((c, i) => (
-        <span key={c.name}>
-          {i > 0 && " · "}
-          {`${c.description}: `}
+    <div id="command-status" className="well">
+      {commands?.map((c) => (
+        <div key={c.name} className="dialog-row">
+          <span className="stack">
+            <span>{c.description}</span>
+          </span>
           {c.shortcut ? (
-            <Kbd className="mx-0.5 align-baseline font-mono">{c.shortcut}</Kbd>
+            <span className="keys">
+              {c.shortcut.split("+").map((key) => (
+                <Kbd key={key}>{key}</Kbd>
+              ))}
+            </span>
           ) : (
-            "Not assigned — use Change shortcuts"
+            <span className="text-ink-3">Not assigned</span>
           )}
-        </span>
+        </div>
       ))}
-    </p>
+    </div>
   );
 }
 function Options({
@@ -218,60 +294,56 @@ function Options({
   }
   return (
     <form onSubmit={submit} className="contents" noValidate>
-      <div className="flex flex-col">
+      <div className="well">
         <SwitchRow
-          label="Keep a tab in TabTuck after opening it"
+          label="Keep a tab saved after opening it"
           setting="keepRestored"
           checked={keepRestored}
           onCheckedChange={setKeepRestored}
         />
-        <Separator />
         <SwitchRow
-          label="Skip URLs already saved (close the duplicate tab)"
+          label="Skip links already saved"
+          sub="Closes the duplicate tab instead"
           setting="deduplicate"
           checked={deduplicate}
           onCheckedChange={setDeduplicate}
         />
-        <Separator />
-        <div className="flex flex-col gap-2 py-4">
-          <BinTime
-            value={hours}
-            onChange={setHours}
-            onErrorChange={setAmountError}
-          />
-          <p aria-live="polite" className="text-sm text-muted-foreground">
-            {consequence(hours, binTimes, now)}
-          </p>
-        </div>
-        <Separator />
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 py-4">
-          <Shortcuts />
-          <Button
-            id="shortcuts"
-            variant="link"
-            size="sm"
-            className="-mx-3"
-            onClick={host.openShortcuts}
-          >
-            Change shortcuts
-          </Button>
-        </div>
-        <Separator />
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 py-4">
-          <p className="leading-relaxed text-muted-foreground">
-            Saved tabs stay on this device and are never sent anywhere.
-          </p>
-          <a
-            href={PRIVACY}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={link}
-          >
-            Privacy policy
-          </a>
-        </div>
+        <BinTime
+          value={hours}
+          onChange={setHours}
+          onErrorChange={setAmountError}
+          note={consequence(hours, binTimes, now)}
+          warn={!!erasedBy(hours, binTimes, now)}
+        />
       </div>
-      <DialogFooter className="mt-2">
+      <div className="dialog-label">
+        <span>Shortcuts</span>
+        <Button
+          id="shortcuts"
+          variant="ghost"
+          size="sm"
+          className="[&_svg]:size-3.5"
+          onClick={host.openShortcuts}
+        >
+          Change
+          {icon("external")}
+        </Button>
+      </div>
+      <Shortcuts />
+      <DialogFooter>
+        <span className="mr-auto flex min-w-0 items-center gap-2 pl-2 text-ink-2 [&_svg]:size-3.5">
+          {icon("shield")}
+          Tabs stay on this device.
+        </span>
+        <a
+          href={PRIVACY}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={link}
+        >
+          Privacy policy
+          {icon("external")}
+        </a>
         <Button type="submit" id="settings-save" disabled={!!amountError}>
           Save
         </Button>
@@ -282,18 +354,13 @@ function Options({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogMedia>{icon("trash")}</AlertDialogMedia>
             <AlertDialogTitle>{`Erase ${plural(erasing, "tab")} now?`}</AlertDialogTitle>
             <AlertDialogDescription>
               {`They were deleted more than ${duration(hours)} ago, so the shorter bin time erases them for good.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Cancel
-            </AlertDialogClose>
+            <AlertDialogClose className={quiet}>Cancel</AlertDialogClose>
             <Button
               variant="destructive"
               onClick={() => {
@@ -310,6 +377,12 @@ function Options({
   );
 }
 
+const facts = [
+  "Everything stays in this browser, on this device.",
+  "No account, no tracking, and no network requests.",
+  "Your tabs are never sent or shared with anyone.",
+  "Delete them any time, or remove TabTuck to erase everything.",
+];
 // Chrome Web Store policy: the user agrees to this notice before any tab is
 // saved. It cannot be dismissed.
 function Consent({ open, host }: { open: boolean; host: Host }) {
@@ -322,32 +395,48 @@ function Consent({ open, host }: { open: boolean; host: Host }) {
         aria-describedby="consent-summary"
         // Start on the title so nothing is outlined until the keyboard is used.
         initialFocus={title}
-        layout="p-7 pb-6"
         className="sm:max-w-[460px]"
       >
         <img className="consent-mark" src="../icons/128.png" alt="" />
-        <DialogTitle
-          id="consent-title"
-          ref={title}
-          tabIndex={-1}
-          className="mb-2 text-[22px] leading-tight font-semibold tracking-tight outline-none"
-        >
-          Before you save tabs
-        </DialogTitle>
-        <DialogDescription
-          id="consent-summary"
-          className="mb-4 text-sm leading-normal"
-        >
-          TabTuck saves the address and title of each tab you choose to save, so
-          you can find it and restore it later.
-        </DialogDescription>
-        <ul className="consent-facts">
-          <li>Everything stays in this browser, on this device.</li>
-          <li>No account, no tracking, and no network requests.</li>
-          <li>Your tabs are never sent or shared with anyone.</li>
-          <li>Delete them any time, or remove TabTuck to erase everything.</li>
-        </ul>
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-1.5 px-2 pb-3">
+          <DialogTitle
+            id="consent-title"
+            ref={title}
+            tabIndex={-1}
+            className="text-[19px] leading-tight font-semibold tracking-[-0.015em] text-ink-0 outline-none"
+          >
+            Before you save tabs
+          </DialogTitle>
+          <DialogDescription
+            id="consent-summary"
+            className="leading-normal text-pretty"
+          >
+            TabTuck saves the address and title of each tab you choose to save,
+            so you can find it and restore it later.
+          </DialogDescription>
+        </div>
+        <div className="well">
+          <ul className="consent-facts">
+            {facts.map((fact) => (
+              <li key={fact}>
+                {icon("done")}
+                {fact}
+              </li>
+            ))}
+          </ul>
+          <div className="mx-1 my-1 h-px bg-border" />
+          <div className="p-1">
+            <Button
+              id="consent-agree"
+              size="lg"
+              className="w-full"
+              onClick={host.agree}
+            >
+              Agree and continue
+            </Button>
+          </div>
+        </div>
+        <div className="flex justify-center pt-2">
           <a
             href={PRIVACY}
             target="_blank"
@@ -355,10 +444,8 @@ function Consent({ open, host }: { open: boolean; host: Host }) {
             className={link}
           >
             Read the privacy policy
+            {icon("external")}
           </a>
-          <Button id="consent-agree" onClick={host.agree}>
-            Agree and continue
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -366,7 +453,8 @@ function Consent({ open, host }: { open: boolean; host: Host }) {
 }
 
 const chip =
-  "inline-flex size-10 cursor-default items-center justify-center rounded-3xl border border-input text-foreground outline-none transition-colors select-none hover:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 data-checked:border-primary/35 data-checked:bg-(--tt-accent-soft) data-checked:text-primary [&_svg]:size-4.5";
+  "inline-flex size-9 cursor-default items-center justify-center rounded-lg text-ink-2 outline-none transition-colors select-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-checked:bg-well data-checked:text-ink-0 data-checked:shadow-[inset_0_0_0_1px_var(--tt-line-2)] [&_svg]:size-4.5";
+const fieldLabel = "text-[13px] font-medium text-ink-2";
 function PromptForm({ request, host }: { request: PromptRequest; host: Host }) {
   const [name, setName] = useState(request.value ?? "");
   const [choice, setChoice] = useState(request.options?.[0]?.[0] ?? "");
@@ -388,75 +476,75 @@ function PromptForm({ request, host }: { request: PromptRequest; host: Host }) {
     );
   }
   return (
-    <form id="prompt-form" onSubmit={submit} className="grid gap-5">
-      <DialogHeader className="pr-10">
+    <form id="prompt-form" onSubmit={submit} className="grid">
+      <DialogHeader>
         <DialogTitle id="prompt-title">{request.title}</DialogTitle>
         {request.description && (
-          <DialogDescription id="prompt-description">
+          <DialogDescription id="prompt-description" className="text-pretty">
             {request.description}
           </DialogDescription>
         )}
       </DialogHeader>
-      {request.value !== undefined && (
-        <Input
-          id="prompt-input"
-          aria-label="Name"
-          autoComplete="off"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-      )}
-      {request.options && (
-        <NativeSelect
-          id="prompt-select"
-          aria-label="Destination"
-          value={choice}
-          onChange={(event) => setChoice(event.target.value)}
-        >
-          {request.options.map(([id, label]) => (
-            <option key={id} value={id}>
-              {label}
-            </option>
-          ))}
-        </NativeSelect>
-      )}
-      {request.folderIcon !== undefined && (
-        <div className="grid gap-2">
-          <span
-            id="folder-icons-label"
-            className="font-mono text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+      <div className="grid gap-4 px-2 pt-1 pb-2">
+        {request.value !== undefined && (
+          <div className="grid gap-1.5">
+            <label htmlFor="prompt-input" className={fieldLabel}>
+              Name
+            </label>
+            <Input
+              id="prompt-input"
+              autoComplete="off"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+        )}
+        {request.options && (
+          <NativeSelect
+            id="prompt-select"
+            aria-label="Destination"
+            value={choice}
+            onChange={(event) => setChoice(event.target.value)}
           >
-            Icon
-          </span>
-          <RadioGroup
-            id="folder-icons"
-            aria-labelledby="folder-icons-label"
-            value={picked}
-            onValueChange={(next) => setPicked(next as string)}
-            className="flex flex-wrap gap-2"
-          >
-            {Object.entries(folderIcons).map(([key, [label]]) => (
-              <Radio.Root
-                key={key}
-                value={key}
-                aria-label={label}
-                title={label}
-                className={chip}
-              >
-                {icon(key)}
-              </Radio.Root>
+            {request.options.map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
             ))}
-          </RadioGroup>
-        </div>
-      )}
+          </NativeSelect>
+        )}
+        {request.folderIcon !== undefined && (
+          <div className="grid gap-1.5">
+            <span id="folder-icons-label" className={fieldLabel}>
+              Icon
+            </span>
+            <RadioGroup
+              id="folder-icons"
+              aria-labelledby="folder-icons-label"
+              value={picked}
+              onValueChange={(next) => setPicked(next as string)}
+              className="-mx-1 flex flex-wrap gap-0.5"
+            >
+              {Object.entries(folderIcons).map(([key, [label]]) => (
+                <Radio.Root
+                  key={key}
+                  value={key}
+                  aria-label={label}
+                  title={label}
+                  className={chip}
+                >
+                  {icon(key)}
+                </Radio.Root>
+              ))}
+            </RadioGroup>
+          </div>
+        )}
+      </div>
       <DialogFooter>
-        <DialogClose
-          id="prompt-cancel"
-          className={buttonVariants({ variant: "outline" })}
-        >
+        <DialogClose id="prompt-cancel" className={quiet}>
           Cancel
         </DialogClose>
-        <Button type="submit">Confirm</Button>
+        <Button type="submit">{request.action ?? "Confirm"}</Button>
       </DialogFooter>
     </form>
   );
@@ -490,17 +578,13 @@ function Prompt({
       <AlertDialog open={!!request} onOpenChange={cancel}>
         <AlertDialogContent id="prompt">
           <AlertDialogHeader>
-            <AlertDialogMedia>{icon("trash")}</AlertDialogMedia>
             <AlertDialogTitle id="prompt-title">{shown.title}</AlertDialogTitle>
             <AlertDialogDescription id="prompt-description">
               {shown.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose
-              id="prompt-cancel"
-              className={buttonVariants({ variant: "outline" })}
-            >
+            <AlertDialogClose id="prompt-cancel" className={quiet}>
               Cancel
             </AlertDialogClose>
             <Button
@@ -510,7 +594,7 @@ function Prompt({
                 host.closePrompt();
               }}
             >
-              Confirm
+              {shown.action ?? "Confirm"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -518,7 +602,7 @@ function Prompt({
     );
   return (
     <Dialog open={!!request} onOpenChange={cancel}>
-      <DialogContent id="prompt" className="sm:max-w-md">
+      <DialogContent id="prompt" className="sm:max-w-[420px]">
         {shown && <PromptForm key={round} request={shown} host={host} />}
       </DialogContent>
     </Dialog>
@@ -533,11 +617,7 @@ function Dialogs({ state, settings, binTimes, host }: DialogsProps) {
         open={state.settings}
         onOpenChange={(next) => !next && host.close("settings")}
       >
-        <DialogContent
-          id="settings"
-          layout="gap-2 p-6"
-          className="sm:max-w-[560px]"
-        >
+        <DialogContent id="settings" className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle id="settings-title">Options</DialogTitle>
           </DialogHeader>

@@ -7,7 +7,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { duration, forgetSearchText } from "./library.ts";
+import { duration, forgetSearchText, plural } from "./library.ts";
 import {
   type Library,
   Views,
@@ -49,8 +49,7 @@ import { TabList, listFocus } from "./tab-list.tsx";
 import { ListHead, SearchBox, Strip } from "./list-bars.tsx";
 import { icon } from "./ui-icons.tsx";
 import { Vine } from "./vine.ts";
-import { Button, buttonVariants } from "./ui/button.tsx";
-import { cn } from "./ui/cn.ts";
+import { Button } from "./ui/button.tsx";
 
 // chrome.storage holds the theme setting; this page-local copy only lets
 // boot.js paint the last theme before that asynchronous read finishes.
@@ -244,45 +243,49 @@ function Empty({
   scope: string;
   query: string;
 }) {
-  const action = cn(buttonVariants({ variant: "link" }), "empty-action");
+  const badge = (name: string) => (
+    <span className="empty-badge">{icon(name)}</span>
+  );
   if (!lib.state.groups.length)
     return (
       <div className="empty">
+        {badge("bookmark")}
         <h2>Nothing saved yet</h2>
         <p>
           Press Alt+C on any page to save it here, or save this whole window.
           Your newest save always lands on top.
         </p>
-        <button
-          type="button"
-          className={action}
+        <Button
+          size="sm"
           onPointerEnter={preloadDialogs}
           onClick={() => setDialog("transfer", true)}
         >
           Import tabs
-        </button>
+        </Button>
       </div>
     );
   if (query)
     return (
       <div className="empty">
+        {badge("search")}
         <h2>No matching tabs</h2>
         <p>{`Nothing here matches “${query}”.`}</p>
-        <button
-          type="button"
-          className={action}
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => {
             search.set("");
             document.getElementById("search")?.focus();
           }}
         >
           Clear search
-        </button>
+        </Button>
       </div>
     );
   if (scope === "bin")
     return (
       <div className="empty">
+        {badge("trash")}
         <h2>The bin is empty</h2>
         <p>
           {`Deleted tabs wait here for ${duration(lib.state.settings.binHours)}, then they are erased for good.`}
@@ -292,12 +295,14 @@ function Empty({
   if (scope === "starred")
     return (
       <div className="empty">
+        {badge("star")}
         <h2>No starred collections</h2>
-        <p>Star a collection in its details to find its tabs here.</p>
+        <p>Turn on Starred in a collection's details to find its tabs here.</p>
       </div>
     );
   return (
     <div className="empty">
+      {badge("layers")}
       <h2>No tabs here</h2>
       <p>Pick another collection or site.</p>
     </div>
@@ -362,11 +367,16 @@ export function App() {
         <div className="head brand-head">
           <div className="brand">
             <img src="../icons/48.png" alt="" />
-            <span className="brand-name">TabTuck</span>
-            <Button
+            <span className="brand-text">
+              <span className="brand-name">TabTuck</span>
+              <span className="brand-count">
+                {views && plural(views.all.length, "saved tab")}
+              </span>
+            </span>
+            <button
+              type="button"
               id="theme-toggle"
-              variant="ghost"
-              size="icon-sm"
+              className="square"
               aria-label={themeLabel}
               title={themeLabel}
               onClick={toggleTheme}
@@ -376,10 +386,17 @@ export function App() {
                 aria-hidden="true"
                 className="theme-icon"
               >
-                <circle cx="12" cy="12" r="8" />
-                <path d="M12 4a8 8 0 0 1 0 16z" />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="8.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path d="M12 6a6 6 0 0 1 0 12z" fill="currentColor" />
               </svg>
-            </Button>
+            </button>
           </div>
         </div>
         <Button
@@ -400,34 +417,32 @@ export function App() {
           hits={found}
         />
         <div className="foot foot-1">
-          <div className="links">
-            <Button
-              id="transfer-open"
-              variant="ghost"
-              size="sm"
-              onPointerEnter={preloadDialogs}
-              onFocus={preloadDialogs}
-              onClick={() => setDialog("transfer", true)}
-            >
-              Import / Export
-            </Button>
-            <Button
-              id="settings-open"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Options"
-              title="Options"
-              onPointerEnter={preloadDialogs}
-              onFocus={preloadDialogs}
-              onClick={() => setDialog("settings", true)}
-            >
-              {icon("gear")}
-            </Button>
-          </div>
+          <Button
+            id="transfer-open"
+            variant="ghost"
+            size="sm"
+            onPointerEnter={preloadDialogs}
+            onFocus={preloadDialogs}
+            onClick={() => setDialog("transfer", true)}
+          >
+            {icon("transfer")}
+            Import / Export
+          </Button>
+          <Button
+            id="settings-open"
+            variant="ghost"
+            size="sm"
+            onPointerEnter={preloadDialogs}
+            onFocus={preloadDialogs}
+            onClick={() => setDialog("settings", true)}
+          >
+            {icon("gear")}
+            Options
+          </Button>
         </div>
       </aside>
       <section className="col" id="col-2" aria-labelledby="scope-title">
-        <ScopeHead views={views} scope={scope} empty={!visible.length} />
+        <ScopeHead views={views} scope={scope} shown={visible.length} />
         <Facets data={facetData} facet={facet} scope={scope} loaded={!!lib} />
       </section>
       <main className="col" id="col-3">
@@ -437,22 +452,24 @@ export function App() {
           </h1>
           <SearchBox />
         </header>
-        <ListHead
-          items={visible}
-          undoable={!!lib?.state.trash?.length && !inBin}
-        />
-        <TabList
-          items={visible}
-          showHost={!site && !scope.startsWith("site:")}
-          binHours={inBin ? lib!.state.settings.binHours : undefined}
-          viewKey={viewKey}
-          // Only an empty list needs it; null keeps the list memoized.
-          empty={
-            lib && !visible.length ? (
-              <Empty lib={lib} scope={scope} query={text.trim()} />
-            ) : null
-          }
-        />
+        <div className="well list-well">
+          <ListHead
+            items={visible}
+            undoable={!!lib?.state.trash?.length && !inBin}
+          />
+          <TabList
+            items={visible}
+            showHost={!site && !scope.startsWith("site:")}
+            binHours={inBin ? lib!.state.settings.binHours : undefined}
+            viewKey={viewKey}
+            // Only an empty list needs it; null keeps the list memoized.
+            empty={
+              lib && !visible.length ? (
+                <Empty lib={lib} scope={scope} query={text.trim()} />
+              ) : null
+            }
+          />
+        </div>
         <Strip items={visible} inBin={inBin} />
       </main>
       <DialogHost lib={lib} />

@@ -1,4 +1,5 @@
-// shadcn/ui Luma dialog on Base UI. The scrim is TabTuck's, not black.
+// shadcn/ui dialog on Base UI, drawn as a tray: a panel with a title strip,
+// cards for its content and a footer strip. The scrim is TabTuck's, not black.
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import type { ComponentProps } from "react";
 import { icon } from "../ui-icons.tsx";
@@ -12,14 +13,14 @@ export const overlayClass =
   "fixed inset-0 isolate z-50 bg-scrim duration-100 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0";
 const closeClass = cn(
   buttonVariants({ variant: "ghost", size: "icon-sm" }),
-  "close absolute top-4 right-4 bg-secondary",
+  "close absolute top-2 right-2",
 );
 
 // The popup's width comes from className (a sm:max-w-* class); layout sets
 // its gap and padding.
 export function DialogContent({
   className,
-  layout = "gap-6 p-6",
+  layout = "gap-0 p-2",
   children,
   showCloseButton = true,
   ...props
@@ -34,7 +35,7 @@ export function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 overflow-y-auto -translate-y-1/2 rounded-4xl bg-popover text-sm text-popover-foreground shadow-xl ring-1 ring-foreground/5 duration-100 outline-none dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 overflow-y-auto -translate-y-1/2 rounded-[16px] bg-panel text-[14px] text-foreground shadow-[inset_0_0_0_1px_var(--tt-line-2),var(--tt-pop-shadow)] duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           layout,
           className,
         )}
@@ -54,7 +55,10 @@ export function DialogHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1.5", className)}
+      className={cn(
+        "flex min-h-10 flex-col justify-center gap-0.5 pt-1.5 pr-10 pb-3 pl-2",
+        className,
+      )}
       {...props}
     />
   );
@@ -64,7 +68,7 @@ export function DialogFooter({ className, ...props }: ComponentProps<"div">) {
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-1.5 pt-2 sm:flex-row sm:items-center sm:justify-end",
         className,
       )}
       {...props}
@@ -73,7 +77,7 @@ export function DialogFooter({ className, ...props }: ComponentProps<"div">) {
 }
 // className replaces the title's size, leading and weight.
 export function DialogTitle({
-  className = "text-lg leading-none font-medium",
+  className = "text-[16px] leading-tight font-semibold tracking-[-0.01em] text-ink-0",
   ...props
 }: DialogPrimitive.Title.Props & { className?: string }) {
   return (
@@ -91,7 +95,7 @@ export function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-[14px] text-muted-foreground", className)}
       {...props}
     />
   );

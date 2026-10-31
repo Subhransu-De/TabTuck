@@ -150,7 +150,7 @@ const TabRow = memo(function TabRow({
         {showHost && <span className="domain">{siteLabel(entry.host)}</span>}
         {inBin ? (
           <time
-            className="tab-left"
+            className={end - now < 24 * HOUR ? "tab-left soon" : "tab-left"}
             dateTime={iso(end)}
             title={`Deleted ${longDate(entry.addedAt)}. Erased ${longDate(end)}.`}
           >

@@ -1,4 +1,5 @@
-// shadcn/ui Luma alert dialog on Base UI.
+// shadcn/ui alert dialog on Base UI, in the same tray as the dialogs: a title
+// and a sentence, then Cancel and the action in the footer strip.
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import type { ComponentProps } from "react";
 import { overlayClass } from "./dialog.tsx";
@@ -19,7 +20,7 @@ export function AlertDialogContent({
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
         className={cn(
-          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-xs -translate-x-1/2 overflow-y-auto -translate-y-1/2 gap-6 rounded-4xl bg-popover p-6 text-popover-foreground shadow-xl ring-1 ring-foreground/5 duration-100 outline-none sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 overflow-y-auto -translate-y-1/2 rounded-[16px] bg-panel p-2 text-[14px] text-foreground shadow-[inset_0_0_0_1px_var(--tt-line-2),var(--tt-pop-shadow)] duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
         {...props}
@@ -34,10 +35,7 @@ export function AlertDialogHeader({
   return (
     <div
       data-slot="alert-dialog-header"
-      className={cn(
-        "grid grid-rows-[auto_1fr] place-items-center gap-1.5 text-center has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] has-data-[slot=alert-dialog-media]:gap-x-6 sm:place-items-start sm:text-left sm:has-data-[slot=alert-dialog-media]:grid-rows-[auto_1fr]",
-        className,
-      )}
+      className={cn("grid gap-1.5 px-2 pt-2 pb-1 text-left", className)}
       {...props}
     />
   );
@@ -50,22 +48,7 @@ export function AlertDialogFooter({
     <div
       data-slot="alert-dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-export function AlertDialogMedia({
-  className,
-  ...props
-}: ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="alert-dialog-media"
-      className={cn(
-        "mb-2 inline-flex size-16 items-center justify-center rounded-full bg-destructive/10 text-destructive sm:row-span-2 *:[svg]:size-8",
+        "flex flex-col-reverse gap-1.5 pt-3 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -80,7 +63,7 @@ export function AlertDialogTitle({
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
       className={cn(
-        "font-heading text-lg font-medium sm:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2",
+        "font-heading text-[16px] leading-tight font-semibold tracking-[-0.01em] text-ink-0",
         className,
       )}
       {...props}
@@ -94,10 +77,7 @@ export function AlertDialogDescription({
   return (
     <AlertDialogPrimitive.Description
       data-slot="alert-dialog-description"
-      className={cn(
-        "text-sm text-balance text-muted-foreground md:text-pretty",
-        className,
-      )}
+      className={cn("text-[14px] text-pretty text-muted-foreground", className)}
       {...props}
     />
   );

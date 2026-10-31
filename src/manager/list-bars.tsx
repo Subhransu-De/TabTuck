@@ -1,7 +1,7 @@
 // Column three around the list: the search box, the bar above the list, and
 // the strip below it with the selection actions and the toast.
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Entry } from "./library.ts";
+import { type Entry, plural } from "./library.ts";
 import {
   clearSelection,
   copySelected,
@@ -84,26 +84,27 @@ export const ListHead = memo(function ListHead({
         <SelectAll items={items} />
         <span>Select all</span>
       </label>
-      <Button
-        id="restore-all"
-        variant="ghost"
-        size="xs"
-        className="list-action"
-        disabled={!items.length}
-        onClick={restoreVisible}
-      >
-        Restore all
-      </Button>
-      <Button
-        id="undo"
-        variant="ghost"
-        size="xs"
-        className="list-action"
-        hidden={!undoable}
-        onClick={undo}
-      >
-        Undo delete
-      </Button>
+      <span className="list-count">{plural(items.length, "tab")}</span>
+      <div className="list-actions">
+        <Button
+          id="undo"
+          variant="ghost"
+          size="sm"
+          hidden={!undoable}
+          onClick={undo}
+        >
+          Undo delete
+        </Button>
+        <Button
+          id="restore-all"
+          variant="ghost"
+          size="sm"
+          disabled={!items.length}
+          onClick={restoreVisible}
+        >
+          Restore all
+        </Button>
+      </div>
     </div>
   );
 });
@@ -126,7 +127,10 @@ export const Strip = memo(function Strip({
     <div className={size ? "foot strip" : "foot strip idle"}>
       <div id="selection" hidden={!size}>
         <span id="selected-count">
-          {`${size} selected${offScreen > 0 ? ` · ${offScreen} hidden` : ""}`}
+          {`${size} selected`}
+          {offScreen > 0 && (
+            <span className="count">{` · ${offScreen} hidden`}</span>
+          )}
         </span>
         <Button id="restore-selected" size="sm" onClick={restoreSelected}>
           Restore
@@ -138,6 +142,7 @@ export const Strip = memo(function Strip({
           hidden={inBin}
           onClick={moveSelected}
         >
+          {icon("move")}
           Move
         </Button>
         <Button
@@ -146,6 +151,7 @@ export const Strip = memo(function Strip({
           size="sm"
           onClick={copySelected}
         >
+          {icon("copy")}
           Copy links
         </Button>
         <Button
@@ -154,10 +160,19 @@ export const Strip = memo(function Strip({
           size="sm"
           onClick={deleteSelected}
         >
+          {icon("trash")}
           {inBin ? "Erase" : "Delete"}
         </Button>
-        <Button id="clear-selected" variant="ghost" size="sm" onClick={clear}>
-          Clear
+        <span className="selection-sep" />
+        <Button
+          id="clear-selected"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Clear selection"
+          title="Clear selection"
+          onClick={clear}
+        >
+          {icon("close")}
         </Button>
       </div>
       <Toaster />
@@ -207,7 +222,8 @@ function ToastCard({
     >
       <span id="status-text">{toast.message}</span>
       {toast.undo && (
-        <Button id="status-undo" size="xs" onClick={undo}>
+        <Button id="status-undo" variant="outline" size="sm" onClick={undo}>
+          {icon("undo")}
           Undo
         </Button>
       )}
