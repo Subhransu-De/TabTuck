@@ -19,7 +19,7 @@ import { cn } from "./ui/cn.ts";
 import { tabThroughRows, useRowWindow, windowedRows } from "./windowing.tsx";
 
 // The height of a site row, set in manage.css.
-const SITE_ROW = 34;
+const SITE_ROW = 32;
 
 const current = (on: boolean) => (on ? "true" : undefined);
 const go = (event: React.MouseEvent<HTMLElement>) =>
@@ -206,10 +206,7 @@ function Folder({
   );
 }
 
-const newFolderClass = cn(
-  buttonVariants({ variant: "ghost", size: "icon-xs" }),
-  "eyebrow-action",
-);
+const newFolderClass = buttonVariants({ variant: "ghost", size: "icon-xs" });
 
 export const Navigation = memo(function Navigation({
   views,
@@ -281,34 +278,36 @@ export const Navigation = memo(function Navigation({
         tabThroughRows(event, ".row.site", "data-scope", keys(), setFocused)
       }
     >
-      <ScopeRow
-        scopeKey="recent"
-        label="Recent"
-        icon="recent"
-        count={all}
-        on={scope === "recent"}
-      />
-      <ScopeRow
-        scopeKey="all"
-        label="All tabs"
-        icon="tabs"
-        count={all}
-        on={scope === "all"}
-      />
-      <ScopeRow
-        scopeKey="starred"
-        label="Starred"
-        icon="star"
-        count={views.live(views.scopeGroups("starred")).length}
-        on={scope === "starred"}
-      />
-      <ScopeRow
-        scopeKey="bin"
-        label="Bin"
-        icon="trash"
-        count={views.bin().length}
-        on={scope === "bin"}
-      />
+      <div className="well">
+        <ScopeRow
+          scopeKey="recent"
+          label="Recent"
+          icon="recent"
+          count={all}
+          on={scope === "recent"}
+        />
+        <ScopeRow
+          scopeKey="all"
+          label="All tabs"
+          icon="tabs"
+          count={all}
+          on={scope === "all"}
+        />
+        <ScopeRow
+          scopeKey="starred"
+          label="Starred"
+          icon="star"
+          count={views.live(views.scopeGroups("starred")).length}
+          on={scope === "starred"}
+        />
+        <ScopeRow
+          scopeKey="bin"
+          label="Bin"
+          icon="trash"
+          count={views.bin().length}
+          on={scope === "bin"}
+        />
+      </div>
       <div className="eyebrow">
         <span>Collections</span>
         <button
@@ -322,34 +321,41 @@ export const Navigation = memo(function Navigation({
           {icon("plus")}
         </button>
       </div>
-      {folderList.map((f) => (
-        <Folder
-          key={f.name}
-          folder={f}
-          views={views}
-          scope={scope}
-          collapsed={collapsed.has(f.name)}
-          folding={folding === f.name}
-          unfolding={unfolding === f.name}
-          hits={hits}
-        />
-      ))}
-      {unfiled.map((g) => (
-        <CollectionRow
-          key={g.id}
-          group={g}
-          count={views.live([g]).length}
-          on={scope === `group:${g.id}`}
-          dim={!!hits && !hits.groups.has(g.id)}
-        />
-      ))}
+      {(folderList.length > 0 || unfiled.length > 0) && (
+        <div className="well">
+          {folderList.map((f) => (
+            <Folder
+              key={f.name}
+              folder={f}
+              views={views}
+              scope={scope}
+              collapsed={collapsed.has(f.name)}
+              folding={folding === f.name}
+              unfolding={unfolding === f.name}
+              hits={hits}
+            />
+          ))}
+          {unfiled.map((g) => (
+            <CollectionRow
+              key={g.id}
+              group={g}
+              count={views.live([g]).length}
+              on={scope === `group:${g.id}`}
+              dim={!!hits && !hits.groups.has(g.id)}
+            />
+          ))}
+        </div>
+      )}
       <div className="eyebrow">
         <span>Sites</span>
+        {!!siteList.length && <span className="count">{siteList.length}</span>}
       </div>
       {!all && (
         <p className="quiet">Saved tabs appear here, grouped by site.</p>
       )}
-      <div ref={section}>{rows}</div>
+      <div className="well" hidden={!siteList.length}>
+        <div ref={section}>{rows}</div>
+      </div>
     </nav>
   );
 });

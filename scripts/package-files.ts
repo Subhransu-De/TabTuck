@@ -8,9 +8,8 @@ export const staticFiles = [
   "icons/32.png",
   "icons/48.png",
   "icons/128.png",
-  "fonts/schibsted-grotesk.woff2",
-  "fonts/hanken-grotesk.woff2",
-  "fonts/spline-sans-mono.woff2",
+  "fonts/inter.woff2",
+  "fonts/jetbrains-mono.woff2",
   "fonts/OFL.txt",
 ];
 

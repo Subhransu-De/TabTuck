@@ -160,9 +160,22 @@ try {
     `#navigation .row.collection[data-group="${pair.id}"]`,
   );
   await alphaGroup.click();
+  // Escape in the restore menu closes the menu and leaves the selection.
+  await page.locator("#select-all").check();
+  await page.getByRole("button", { name: "More ways to restore" }).click();
+  const restoreMenu = page.getByRole("menu", { name: "More ways to restore" });
+  await restoreMenu.waitFor();
+  await page.keyboard.press("Escape");
+  await restoreMenu.waitFor({ state: "hidden" });
+  assert.equal(await page.locator(".tab-row.selected").count(), 2);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".tab-row.selected").count(), 0);
   const details = page.locator("#scope-head");
-  await details.getByRole("button", { name: "Lock", exact: true }).click();
-  await details.getByRole("button", { name: "Unlock", exact: true }).waitFor();
+  const lock = details.getByRole("switch", { name: "Locked", exact: true });
+  await lock.click();
+  await details
+    .locator('[role="switch"][data-action="lock"][aria-checked="true"]')
+    .waitFor();
   const lockedId = await alphaGroup.getAttribute("data-group");
   assert.ok(lockedId);
   await invoke({ type: "restore", groupId: lockedId });
@@ -177,8 +190,10 @@ try {
       .tabs.length,
     2,
   );
-  await details.getByRole("button", { name: "Unlock", exact: true }).click();
-  await details.getByRole("button", { name: "Lock", exact: true }).waitFor();
+  await lock.click();
+  await details
+    .locator('[role="switch"][data-action="lock"][aria-checked="false"]')
+    .waitFor();
   await page.locator("#select-all").check();
   await page.locator("#restore-selected").click();
   await page.waitForFunction(
@@ -230,6 +245,7 @@ try {
   await page.locator("#theme-toggle").click();
   await page.waitForFunction(() => document.body.classList.contains("dark"));
   await page.locator("#transfer-open").click();
+  await page.locator("#transfer-tab-export").click();
   const downloadEvent = page.waitForEvent("download");
   await page.locator("#export-json").click();
   const download = await downloadEvent;

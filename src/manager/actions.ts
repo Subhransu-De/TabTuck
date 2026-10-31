@@ -262,6 +262,7 @@ export async function erase(ids?: string[]) {
     count > 1 &&
     !(await ask(ids ? `Erase ${plural(count, "tab")}?` : "Empty the bin?", {
       description: `${ids ? `These ${count} tabs` : "Everything in the bin"} will be erased for good. This cannot be undone.`,
+      action: ids ? `Erase ${plural(count, "tab")}` : "Empty bin",
     }))
   )
     return;
@@ -320,6 +321,7 @@ export const moveSelected = () =>
       return;
     }
     const targetId = await ask("Move selected tabs", {
+      action: "Move",
       options: [
         ["", "New collection"],
         ...state()
@@ -360,7 +362,10 @@ const update = (groupId: string, patch: Partial<TabGroup>) =>
   api({ type: "update", groupId, patch });
 export const renameGroup = (g: TabGroup) =>
   run(async () => {
-    const name = await ask("Name this collection", { value: g.name });
+    const name = await ask("Name this collection", {
+      value: g.name,
+      action: "Rename",
+    });
     if (name !== null) await update(g.id, { name: name.trim() });
   });
 export const toggleStar = (g: TabGroup) =>
@@ -380,6 +385,7 @@ export const moveToFolder = (g: TabGroup) =>
       folderIcon: folderIconOf(g.folder),
       description:
         "Type a folder name and pick its icon. Leave the name empty to take the collection out of its folder.",
+      action: "Move",
     });
     if (folder !== null)
       await update(g.id, {
@@ -393,6 +399,7 @@ export const editFolder = (f: string) =>
       value: f,
       folderIcon: folderIconOf(f),
       description: "Change the folder's name or its icon.",
+      action: "Save",
     });
     const name = edit?.name.trim();
     if (!edit || !name) return;
@@ -406,6 +413,7 @@ export const newFolder = () =>
       value: "",
       folderIcon: "folder",
       description: "Folders hold collections. Choose the first one next.",
+      action: "Next",
     });
     if (!folder?.name.trim()) return;
     if (!state().groups.length) {
@@ -413,6 +421,7 @@ export const newFolder = () =>
       return;
     }
     const groupId = await ask("Choose a collection", {
+      action: "Create folder",
       options: state().groups.map((g) => [
         g.id,
         `${collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,

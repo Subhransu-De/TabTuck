@@ -13,6 +13,8 @@ export interface PromptRequest {
   options?: string[][];
   // An icon picker with this icon chosen.
   folderIcon?: string;
+  // What the answer button says, such as "Move" or "Erase 4 tabs".
+  action?: string;
   resolve: (result: PromptResult) => void;
 }
 export interface DialogState {

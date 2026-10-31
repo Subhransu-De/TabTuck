@@ -1,5 +1,5 @@
-// The bin time in Options: a Luma select of common lengths, and Custom for an
-// amount in hours or days.
+// The bin time in Options: a row with a select of common lengths, and Custom
+// for an amount in hours or days under it.
 import { useEffect, useId, useRef, useState } from "react";
 import { NumberField } from "@base-ui/react/number-field";
 import { Radio } from "@base-ui/react/radio";
@@ -33,15 +33,14 @@ const UNITS: { value: Unit; label: string }[] = [
   { value: "hours", label: "Hours" },
   { value: "days", label: "Days" },
 ];
-// Luma's tabs list and trigger styles, on radios: a unit is a choice, not a
-// tab.
+// A segmented track, on radios: a unit is a choice, not a tab.
 const segmentList =
-  "inline-flex h-9 w-full shrink-0 items-center justify-center gap-0 rounded-full bg-muted p-1 text-muted-foreground @2xs:w-fit";
+  "flex h-8 shrink-0 gap-0.5 rounded-[10px] bg-recess p-0.75 shadow-[inset_0_0_0_1px_var(--tt-line)]";
 const segment =
-  "relative inline-flex h-full flex-1 cursor-default items-center justify-center rounded-full border border-transparent px-3 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all outline-none select-none hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:text-muted-foreground dark:hover:text-foreground data-checked:bg-raised data-checked:text-foreground data-checked:shadow-sm dark:data-checked:border-input dark:data-checked:bg-input dark:data-checked:text-foreground";
+  "inline-flex flex-1 cursor-default items-center justify-center rounded-[7px] px-3 font-medium whitespace-nowrap text-ink-2 outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-checked:bg-well data-checked:text-ink-0 data-checked:shadow-[inset_0_0_0_1px_var(--tt-line-2),0_1px_2px_rgb(0_0_0/0.2)]";
 const stepButton = cn(
-  buttonVariants({ variant: "ghost", size: "icon-sm" }),
-  "shrink-0 shadow-none",
+  buttonVariants({ variant: "ghost", size: "icon-xs" }),
+  "shrink-0",
 );
 
 function AmountUnit({
@@ -88,7 +87,7 @@ function AmountUnit({
     <div
       role="group"
       aria-labelledby={labelledBy}
-      className="@container flex flex-col gap-2 animate-in duration-150 fade-in-0 slide-in-from-top-1"
+      className="@container flex flex-col gap-2 px-2.5 pb-2.5 animate-in duration-150 fade-in-0 slide-in-from-top-1"
     >
       {/* One row when it fits; in a narrow dialog the two controls stack. */}
       <div className="grid gap-2 @2xs:flex @2xs:items-center">
@@ -104,7 +103,7 @@ function AmountUnit({
         >
           <NumberField.Group
             data-slot="input-group"
-            className="group/input-group relative flex h-9 w-full min-w-0 items-center rounded-4xl border border-transparent bg-input/50 px-0.5 transition-[color,box-shadow,background-color] outline-none has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/30 has-[[aria-invalid=true]]:border-destructive has-[[aria-invalid=true]]:ring-3 has-[[aria-invalid=true]]:ring-destructive/20 @2xs:w-34"
+            className="group/input-group relative flex h-8 w-full min-w-0 items-center rounded-lg bg-raised px-1 shadow-[inset_0_0_0_1px_var(--tt-line-2)] transition-shadow outline-none has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--tt-focus)] has-[[aria-invalid=true]]:shadow-[inset_0_0_0_1px_var(--destructive)] @2xs:w-32"
           >
             <NumberField.Decrement className={stepButton}>
               {icon("minus")}
@@ -124,7 +123,7 @@ function AmountUnit({
               }
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? errorId : undefined}
-              className="h-full w-full min-w-0 bg-transparent text-center font-mono text-sm tabular-nums outline-none"
+              className="h-full w-full min-w-0 bg-transparent text-center font-mono text-[14px] tabular-nums outline-none"
             />
             <NumberField.Increment className={stepButton}>
               {icon("plus")}
@@ -149,7 +148,7 @@ function AmountUnit({
         </RadioGroup>
       </div>
       {error && (
-        <div id={errorId} role="alert" className="text-sm text-destructive">
+        <div id={errorId} role="alert" className="text-destructive">
           {error}
         </div>
       )}
@@ -161,19 +160,28 @@ export function BinTime({
   value,
   onChange,
   onErrorChange,
+  note,
+  warn,
 }: {
   value: number;
   onChange: (hours: number) => void;
   onErrorChange: (error: string) => void;
+  // What the chosen time means for the tabs in the bin.
+  note: string;
+  // The note says saving erases tabs.
+  warn: boolean;
 }) {
   const [custom, setCustom] = useState(() => !isPreset(value));
   const labelId = useId();
   const valueId = useId();
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <span id={labelId} className="text-sm leading-snug">
-          Keep deleted tabs in the bin for
+    <>
+      <div className="dialog-row">
+        <span className="stack">
+          <span id={labelId}>Keep deleted tabs in the bin for</span>
+          <span aria-live="polite" className={cn("sub", warn && "soon")}>
+            {note}
+          </span>
         </span>
         <Select
           value={custom ? CUSTOM : String(value)}
@@ -188,7 +196,7 @@ export function BinTime({
           <SelectTrigger
             id="bin-time"
             aria-labelledby={`${labelId} ${valueId}`}
-            className="w-fit min-w-36"
+            className="w-fit min-w-28 shrink-0"
           >
             <SelectValue id={valueId}>
               {(selected: string) =>
@@ -217,6 +225,6 @@ export function BinTime({
           labelledBy={labelId}
         />
       )}
-    </div>
+    </>
   );
 }
