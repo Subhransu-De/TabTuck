@@ -51,9 +51,18 @@ function pick(event: React.MouseEvent<HTMLInputElement>) {
   choose(rowOf(event), event.currentTarget.checked, event.shiftKey);
 }
 // A saved tab's title restores it here; Ctrl-click or middle-click keeps it.
+// A restored row leaves and the next one moves under the pointer, so clicks in
+// one place restore tab after tab. The system counts those as a double-click
+// (event.detail) for up to half a second, so time decides too: only a repeat
+// click this soon after the last restore is the second half of a
+// double-click, and must not restore the row that moved up.
+const DOUBLE_CLICK_GAP = 200;
+let lastRestore = -Infinity;
 function titleClick(event: React.MouseEvent<HTMLAnchorElement>) {
   event.preventDefault();
-  if (event.detail > 1) return;
+  if (event.detail > 1 && event.timeStamp - lastRestore < DOUBLE_CLICK_GAP)
+    return;
+  lastRestore = event.timeStamp;
   restoreTab(rowOf(event), event.ctrlKey || event.metaKey);
 }
 // React handles clicks at the root, which a row removed by a restore no

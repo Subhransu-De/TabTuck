@@ -178,8 +178,23 @@ try {
       () => !document.querySelector('a[aria-busy="true"]'),
     );
     assert.equal(await page.locator(".tab-row").count(), 2);
+    // Clicks in one place restore row after row, though the system still
+    // counts a repeat within half a second as part of a double-click.
+    await page.waitForTimeout(250);
+    await page.evaluate(() =>
+      document
+        .querySelector<HTMLAnchorElement>(".tab-row a")!
+        .dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            detail: 2,
+          }),
+        ),
+    );
+    assert.equal(await page.evaluate(() => window.restoreRequests.length), 5);
     console.log(
-      "PASS: immediate DOM removal before reply; duplicate protection; independent clicks; no resurrection on storage changes; partial failure and rejected-message rollback; locked links retained; same-window opening.",
+      "PASS: immediate DOM removal before reply; duplicate protection; independent clicks; repeated clicks in place; no resurrection on storage changes; partial failure and rejected-message rollback; locked links retained; same-window opening.",
     );
   }
 } finally {
