@@ -44,6 +44,7 @@ try {
       await document.fonts.ready;
       const style = getComputedStyle(document.body);
       return [
+        style.fontFamily.split(",")[0]!.replaceAll('"', "").trim(),
         style.fontSize,
         style.lineHeight,
         [...document.fonts].some(
@@ -53,7 +54,7 @@ try {
         ),
       ];
     }),
-    ["15px", "22px", true],
+    ["Inter", "15px", "22px", true],
   );
   // First use: agree to the data notice before anything can be saved.
   await page.locator("#consent-agree").click();
