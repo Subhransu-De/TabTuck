@@ -17,7 +17,7 @@ Each pull request with a user-visible change adds an entry under `## Unreleased`
 
 ## Retrying
 
-If a later step fails, open the run and choose **Re-run failed jobs**. To retry an older release, run the workflow on its `vX.Y.Z` tag instead of `main`: it rebuilds from the tag, leaves an existing GitHub release unchanged, and skips the store upload if that version is already submitted.
+If a later step fails, open the run and choose **Re-run failed jobs**. If the push failed because `main` moved during the build, start a new release instead; a rerun refuses a tag that another release created. To retry an older release, run the workflow on its `vX.Y.Z` tag instead of `main`: it rebuilds from the tag, leaves an existing GitHub release unchanged, and skips the store upload if that version is already submitted.
 
 ## Package audit
 

@@ -166,7 +166,15 @@ jobs:
         if: github.ref_type == 'branch'
         run: |
           if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
-            echo "::notice::Tag v$VERSION already exists; skipping the release commit."
+            # A rerun may only continue with the tag this run pushed: its
+            # release commit sits directly on the commit the package was
+            # built from. Another run may have claimed the version since.
+            git fetch --quiet --depth=2 origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+            if [[ "$(git rev-parse "v$VERSION^{commit}^" 2>/dev/null)" != "$GITHUB_SHA" ]]; then
+              echo "::error::Tag v$VERSION was not created from $GITHUB_SHA by this release. Start a new release from main instead of re-running this one."
+              exit 1
+            fi
+            echo "::notice::Tag v$VERSION already exists from this release; skipping the release commit."
             exit 0
           fi
           bun scripts/release-version.ts apply "$VERSION" "$DATE"
