@@ -16,12 +16,14 @@ Pull requests add their user-visible changes under Unreleased. The Release workf
 
 - The manager page is rebuilt with React and shadcn/ui. Every earlier feature is kept. ([#14](https://github.com/Subhransu-De/TabTuck/pull/14))
 - The manager is restyled as nested trays with a neutral accent, Inter and JetBrains Mono fonts, and larger text. ([#15](https://github.com/Subhransu-De/TabTuck/pull/15))
+- Text in the manager is 15px Inter on a 22px line, one size up from 14px, and body text no longer has negative letter spacing.
 - Import and Export are separate tabs, and Import has a file picker. ([#15](https://github.com/Subhransu-De/TabTuck/pull/15))
 - The privacy policy is rewritten in plain words and covers the Bin. ([#14](https://github.com/Subhransu-De/TabTuck/pull/14))
 - Releases start from a manual workflow on `main` that picks the next version, publishes the GitHub release from this changelog, and then submits the package to the Chrome Web Store.
 
 ### Fixed
 
+- Text without its own size, such as plain buttons and the data notice, showed in the browser's default 12px font instead of Inter.
 - Quick clicks on tab titles in one place restore one tab per click again. Before, clicks within half a second of each other were ignored. ([#15](https://github.com/Subhransu-De/TabTuck/pull/15))
 
 ## [1.1.0] - 2026-10-26

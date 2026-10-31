@@ -35,7 +35,7 @@ export function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 overflow-y-auto -translate-y-1/2 rounded-[16px] bg-panel text-[14px] text-foreground shadow-[inset_0_0_0_1px_var(--tt-line-2),var(--tt-pop-shadow)] duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 overflow-y-auto -translate-y-1/2 rounded-[16px] bg-panel text-[15px] text-foreground shadow-[inset_0_0_0_1px_var(--tt-line-2),var(--tt-pop-shadow)] duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           layout,
           className,
         )}
@@ -95,7 +95,7 @@ export function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-[14px] text-muted-foreground", className)}
+      className={cn("text-[15px] text-muted-foreground", className)}
       {...props}
     />
   );

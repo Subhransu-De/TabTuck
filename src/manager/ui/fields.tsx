@@ -10,7 +10,7 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       data-slot="input"
-      className={cn(field, "h-8 rounded-lg px-2.5 text-[14px]", className)}
+      className={cn(field, "h-8 rounded-lg px-2.5 text-[15px]", className)}
       {...props}
     />
   );
@@ -36,7 +36,7 @@ export function NativeSelect({
         data-slot="native-select"
         className={cn(
           field,
-          "h-8 appearance-none rounded-lg py-1 pr-9 pl-2.5 text-[14px] font-medium",
+          "h-8 appearance-none rounded-lg py-1 pr-9 pl-2.5 text-[15px] font-medium",
           className,
         )}
         {...props}
