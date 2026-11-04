@@ -6,6 +6,8 @@ Pull requests add their user-visible changes under Unreleased. The Release workf
 
 ## Unreleased
 
+## [1.2.0] - 2026-11-04
+
 ### Added
 
 - A Bin for deleted tabs. Tabs stay there for 30 days, or for a time from 1 hour to 1 year chosen in Options, and can be restored to their collection or erased. The Bin holds up to 10,000 tabs and drops the oldest deletes first. ([#14](https://github.com/Subhransu-De/TabTuck/pull/14))
