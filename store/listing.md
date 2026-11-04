@@ -44,7 +44,7 @@ Source code: https://github.com/Subhransu-De/TabTuck
 
 **Store icon (128×128):** `src/icons/128.png`
 
-**Screenshots (1280×800):** `screenshot-1-recent.png`, `screenshot-2-collection.png`, `screenshot-3-dark.png`, `screenshot-4-folders.png`
+**Screenshots (1280×800):** `screenshot-1-recent.png`, `screenshot-2-collection.png`, `screenshot-3-dark.png`, `screenshot-4-folders.png`, `screenshot-5-bin.png`
 
 **Small promo tile (440×280):** `promo-small-440x280.png`
 
