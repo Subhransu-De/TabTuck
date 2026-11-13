@@ -246,24 +246,6 @@ function Empty({
   const badge = (name: string) => (
     <span className="empty-badge">{icon(name)}</span>
   );
-  if (!lib.state.groups.length)
-    return (
-      <div className="empty">
-        {badge("bookmark")}
-        <h2>Nothing saved yet</h2>
-        <p>
-          Press Alt+C on any page to save it here, or save this whole window.
-          Your newest save always lands on top.
-        </p>
-        <Button
-          size="sm"
-          onPointerEnter={preloadDialogs}
-          onClick={() => setDialog("transfer", true)}
-        >
-          Import tabs
-        </Button>
-      </div>
-    );
   if (query)
     return (
       <div className="empty">
@@ -297,7 +279,25 @@ function Empty({
       <div className="empty">
         {badge("star")}
         <h2>No starred collections</h2>
-        <p>Turn on Starred in a collection's details to find its tabs here.</p>
+        <p>Turn on Starred in a collection’s details to find its tabs here.</p>
+      </div>
+    );
+  if (!lib.state.groups.length)
+    return (
+      <div className="empty">
+        {badge("bookmark")}
+        <h2>Nothing saved yet</h2>
+        <p>
+          Press Alt+C on any page to save it here, or save this whole window.
+          Your newest save always lands on top.
+        </p>
+        <Button
+          size="sm"
+          onPointerEnter={preloadDialogs}
+          onClick={() => setDialog("transfer", true)}
+        >
+          Import tabs
+        </Button>
       </div>
     );
   return (
@@ -421,6 +421,7 @@ export function App() {
             id="transfer-open"
             variant="ghost"
             size="sm"
+            className="px-2"
             onPointerEnter={preloadDialogs}
             onFocus={preloadDialogs}
             onClick={() => setDialog("transfer", true)}
@@ -432,6 +433,7 @@ export function App() {
             id="settings-open"
             variant="ghost"
             size="sm"
+            className="px-2"
             onPointerEnter={preloadDialogs}
             onFocus={preloadDialogs}
             onClick={() => setDialog("settings", true)}

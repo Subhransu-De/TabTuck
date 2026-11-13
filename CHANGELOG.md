@@ -6,6 +6,21 @@ Pull requests add their user-visible changes under Unreleased. The Release workf
 
 ## Unreleased
 
+### Changed
+
+- The three column titles, their lists and the line that links a chosen row to the next column now line up, and long lists fade out at their bottom edge instead of cutting the last row in half.
+- Dialog titles match the buttons that open them, such as Rename collection and New folder, and the bin time note in Options says "is erased on" with the same time format as the rest of the app.
+- Site names the manager makes up itself are spelled the way the sites write them, such as GitHub, arXiv and Hacker News.
+- The README shows the manager in its dark and light themes.
+
+### Fixed
+
+- The line between Recent and Everything no longer draws a small squiggle.
+- Pointing at the chosen row in the side list no longer makes it look unselected.
+- Import / Export keeps one height when you switch between its tabs.
+- An empty Bin or Starred view shows its own message instead of "Nothing saved yet".
+- The search field uses its own clear button instead of Chrome's.
+
 ## [1.2.0] - 2026-11-04
 
 ### Added

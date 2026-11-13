@@ -13,7 +13,7 @@ export const overlayClass =
   "fixed inset-0 isolate z-50 bg-scrim duration-100 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0";
 const closeClass = cn(
   buttonVariants({ variant: "ghost", size: "icon-sm" }),
-  "close absolute top-2 right-2",
+  "close absolute top-[11px] right-2",
 );
 
 // The popup's width comes from className (a sm:max-w-* class); layout sets

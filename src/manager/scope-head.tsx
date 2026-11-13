@@ -134,7 +134,7 @@ function RestoreAll({
       </Button>
       <MenuButton
         label="More ways to restore"
-        className={cn(buttonVariants({ size: "icon" }), "size-7.5")}
+        className={buttonVariants({ size: "icon-default" })}
         disabled={!count}
         items={[
           {

@@ -108,7 +108,7 @@ function Transfer({ open, host }: { open: boolean; host: Host }) {
               Export
             </Tabs.Tab>
           </Tabs.List>
-          <Tabs.Panel value="import" className="outline-none">
+          <Tabs.Panel value="import" className="min-h-[198px] outline-none">
             <Textarea
               id="import-text"
               aria-label="Import text"
@@ -160,7 +160,7 @@ function Transfer({ open, host }: { open: boolean; host: Host }) {
               </Button>
             </DialogFooter>
           </Tabs.Panel>
-          <Tabs.Panel value="export" className="outline-none">
+          <Tabs.Panel value="export" className="min-h-[198px] outline-none">
             <div className="well">
               <div className="dialog-row">
                 {icon("file-json")}
@@ -523,7 +523,7 @@ function PromptForm({ request, host }: { request: PromptRequest; host: Host }) {
               aria-labelledby="folder-icons-label"
               value={picked}
               onValueChange={(next) => setPicked(next as string)}
-              className="-mx-1 flex flex-wrap gap-0.5"
+              className="flex flex-wrap gap-0.5"
             >
               {Object.entries(folderIcons).map(([key, [label]]) => (
                 <Radio.Root
@@ -540,7 +540,7 @@ function PromptForm({ request, host }: { request: PromptRequest; host: Host }) {
           </div>
         )}
       </div>
-      <DialogFooter>
+      <DialogFooter className="px-2 pb-2">
         <DialogClose id="prompt-cancel" className={quiet}>
           Cancel
         </DialogClose>
