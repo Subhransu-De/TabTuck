@@ -6,6 +6,8 @@ Pull requests add their user-visible changes under Unreleased. The Release workf
 
 ## Unreleased
 
+## [1.2.1] - 2026-11-13
+
 ### Changed
 
 - The three column titles, their lists and the line that links a chosen row to the next column now line up, and long lists fade out at their bottom edge instead of cutting the last row in half. ([#19](https://github.com/Subhransu-De/TabTuck/pull/19))
