@@ -18,6 +18,7 @@ interface Geometry {
 const SVG = "http://www.w3.org/2000/svg";
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const ease = (t: number) => 1 - (1 - t) ** 3;
+const SNAP = 6;
 
 // Row centre, clamped to the visible part of its scrolling list.
 function anchorY(row: HTMLElement, origin: DOMRect) {
@@ -36,11 +37,15 @@ function measure(link: VineLink, origin: DOMRect): Geometry | null {
   if (!link.fromRow || !link.toRow) return null;
   const a = anchorY(link.fromRow, origin),
     b = anchorY(link.toRow, origin);
+  // Rows a few pixels apart get one straight line at their mean height: an
+  // elbow over so small a step shrinks into a squiggle, and the dots sit on
+  // the panel edges, where so small an offset from a row's centre is unseen.
+  const level = Math.abs(a.y - b.y) < SNAP ? (a.y + b.y) / 2 : null;
   return {
     x1: link.from.getBoundingClientRect().right - origin.left,
     x2: link.to.getBoundingClientRect().left - origin.left,
-    y1: a.y,
-    y2: b.y,
+    y1: level ?? a.y,
+    y2: level ?? b.y,
     hidden1: a.hidden,
     hidden2: b.hidden,
   };

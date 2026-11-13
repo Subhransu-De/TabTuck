@@ -362,7 +362,7 @@ const update = (groupId: string, patch: Partial<TabGroup>) =>
   api({ type: "update", groupId, patch });
 export const renameGroup = (g: TabGroup) =>
   run(async () => {
-    const name = await ask("Name this collection", {
+    const name = await ask("Rename collection", {
       value: g.name,
       action: "Rename",
     });
@@ -398,7 +398,7 @@ export const editFolder = (f: string) =>
     const edit = await ask("Edit folder", {
       value: f,
       folderIcon: folderIconOf(f),
-      description: "Change the folder's name or its icon.",
+      description: "Change the folder’s name or its icon.",
       action: "Save",
     });
     const name = edit?.name.trim();
@@ -409,7 +409,7 @@ export const editFolder = (f: string) =>
   });
 export const newFolder = () =>
   run(async () => {
-    const folder = await ask("Create a folder", {
+    const folder = await ask("New folder", {
       value: "",
       folderIcon: "folder",
       description: "Folders hold collections. Choose the first one next.",
@@ -472,7 +472,7 @@ export const agree = () =>
   run(async () => {
     await api({ type: "settings", settings: { dataNotice: true } });
     setDialog("consent", false);
-    toast("You're set. Press Alt+C on any page to save it here.");
+    toast("You’re set. Press Alt+C on any page to save it here.");
   });
 export const saveWindow = () =>
   run(async () => {

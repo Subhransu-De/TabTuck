@@ -61,7 +61,7 @@ const day = new Intl.DateTimeFormat(undefined, {
 const dayAndTime = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
   month: "short",
-  hour: "2-digit",
+  hour: "numeric",
   minute: "2-digit",
 });
 // "27 Oct", or "25 Oct, 14:00" when the time is under two days away.
@@ -75,5 +75,5 @@ export function consequence(hours: number, deleted: number[], now: number) {
     return `${plural(erased, "tab")} in the bin will be erased when you save.`;
   if (!deleted.length) return `Deleted tabs stay ${duration(hours)}.`;
   const oldest = deleted.reduce((a, b) => Math.min(a, b));
-  return `Deleted tabs stay ${duration(hours)}. The oldest one in the bin gets removed on ${when(oldest + hours * HOUR, now)}.`;
+  return `Deleted tabs stay ${duration(hours)}. The oldest one in the bin is erased on ${when(oldest + hours * HOUR, now)}.`;
 }

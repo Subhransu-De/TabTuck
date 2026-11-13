@@ -16,6 +16,8 @@
 
 Save tabs for later, keep them organized, and restore them in the same browser window. Built for Helium and other Chromium browsers with TypeScript, React, shadcn/ui (Luma style on Base UI) and Tailwind CSS.
 
+![The TabTuck manager, split between its dark and light themes](store/readme-hero.png)
+
 ## Features
 
 - Save the current tab or tabs to its left or right. Pinned tabs and tabs in browser groups are skipped.

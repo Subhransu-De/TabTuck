@@ -244,7 +244,7 @@ export const TabList = memo(function TabList({
   empty: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [row, setRow] = useState(34);
+  const [row, setRow] = useState(32);
   // The focused row stays mounted while the window scrolls away from it.
   const [pinned, setPinned] = useState<string>();
   const live = useRef({ items });

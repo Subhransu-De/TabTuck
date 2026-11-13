@@ -46,6 +46,6 @@ test("the line under the bin time says what saving would do", () => {
   );
   expect(consequence(30 * 24, [], now)).toBe("Deleted tabs stay 30 days.");
   expect(consequence(30 * 24, deleted, now)).toMatch(
-    /^Deleted tabs stay 30 days\. The oldest one in the bin gets removed on .+\.$/,
+    /^Deleted tabs stay 30 days\. The oldest one in the bin is erased on .+\.$/,
   );
 });

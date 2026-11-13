@@ -137,6 +137,18 @@ export function bulletList(tabs: SavedTab[]) {
 
 // The registrable part of a host: "doc.rust-lang.org" -> "rust-lang",
 // "news.bbc.co.uk" -> "bbc".
+// Sites whose own spelling a capital first letter gets wrong, for when no
+// tab title names the site. Keys are a brand or, for short brands, a host.
+const KNOWN_NAMES: Record<string, string> = {
+  arxiv: "arXiv",
+  github: "GitHub",
+  gitlab: "GitLab",
+  linkedin: "LinkedIn",
+  stackoverflow: "Stack Overflow",
+  ycombinator: "Hacker News",
+  youtube: "YouTube",
+  "web.dev": "web.dev",
+};
 export function brandOf(host: string) {
   const parts = host.split(".");
   if (parts.length < 2) return host;
@@ -186,7 +198,10 @@ export function siteNames(list: Entry[]): Map<string, string> {
     names.set(
       host,
       host
-        ? (best ?? brand.charAt(0).toUpperCase() + brand.slice(1))
+        ? (best ??
+            KNOWN_NAMES[host] ??
+            KNOWN_NAMES[brand] ??
+            brand.charAt(0).toUpperCase() + brand.slice(1))
         : siteLabel(host),
     );
   }
@@ -219,7 +234,10 @@ export function groupSites(group: TabGroup) {
 
 export function collectionLabel(group: TabGroup) {
   if (group.name) return group.name;
-  const top = groupSites(group);
+  // Ties go by host, so a site's display name never reorders the label.
+  const top = [...groupSites(group)].sort(
+    (a, b) => b.count - a.count || a.host.localeCompare(b.host),
+  );
   if (!top.length) return "Empty collection";
   let names = top.slice(0, 2).map((s) => shortName(s.host));
   // "example.com" and "example.org" would both read "example".

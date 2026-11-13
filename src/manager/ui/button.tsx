@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
 
 export const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-[15px] font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px]",
+  "group/button inline-flex shrink-0 items-center justify-center border border-transparent bg-clip-padding text-[15px] font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px]",
   {
     variants: {
       variant: {
@@ -25,16 +25,18 @@ export const buttonVariants = cva(
         link: "text-foreground underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-7.5 gap-1.5 px-3",
+        default: "h-7.5 gap-1.5 rounded-lg px-3",
         xs: "h-6 gap-1 rounded-md px-2 text-[13px] [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1.5 rounded-[7px] px-2.5",
         md: "h-7 gap-1.5 rounded-[7px] px-2.5",
-        lg: "h-8 gap-2 px-3.5",
-        icon: "size-8",
+        lg: "h-8 gap-2 rounded-lg px-3.5",
+        icon: "size-8 rounded-lg",
+        // Square, and as tall as a default button beside it.
+        "icon-default": "size-7.5 rounded-lg",
         "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3.5",
         "icon-sm": "size-7 rounded-[7px]",
         "icon-md": "size-7 rounded-[7px]",
-        "icon-lg": "size-9",
+        "icon-lg": "size-9 rounded-lg",
       },
     },
     defaultVariants: {
