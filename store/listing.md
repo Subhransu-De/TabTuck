@@ -28,7 +28,7 @@ Organize saved tabs
 Restore tabs
 • Open TabTuck with Alt+Q or the toolbar icon.
 • Restore one link or a whole collection in the current window, or restore it and keep it saved.
-• Deleted tabs wait in the Bin for 30 days, or the time you choose, so nothing is lost by mistake.
+• Undo a delete you didn't mean to make. Deleted tabs also wait in the Bin for 30 days, or the time you choose.
 
 Import and export
 • Import a list of links, one per line. Lines written as "URL | title" keep their titles, and a blank line starts a new collection, so a OneTab export comes in as it is.
