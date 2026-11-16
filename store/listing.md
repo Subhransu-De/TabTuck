@@ -4,36 +4,40 @@ Copy these values into the Developer Dashboard. The name, summary, and icon come
 
 ## Store listing tab
 
-**Name** (from the manifest): TabTuck
+**Name** (from the manifest): TabTuck: Save Tabs for Later
 
-**Summary** (from the manifest): Save, organize and restore tab groups in the same browser window.
+**Summary** (from the manifest): A private tab manager: save tabs for later, sort them into collections, search them, and restore them in the same window.
+
+The name and summary are what store search and result cards show first, so they carry the phrases people type: "save tabs for later" and "tab manager". They change only with a new package.
 
 **Description:**
 
 ```text
-TabTuck saves the tabs you don't need right now and brings them back when you do, in the same browser window.
+TabTuck is a tab manager for people with too many tabs open. Save tabs for later in one click, close them to free up memory, and restore them when you need them, in the same browser window.
 
-Save
-• Save the current tab with Alt+C, or the tabs to its left or right from the right-click menu.
-• Pinned tabs and tabs in browser tab groups are skipped.
+Save tabs
+• Save the current tab with Alt+C, or right-click to save every tab to its left or right.
+• Saved tabs close, and you stay on the next tab.
+• Pinned tabs and tabs in browser tab groups are left alone.
 
-Organize
-• Keep saved links in collections and folders, with stars and locks.
-• Search everything you saved, or view it grouped by site.
+Organize saved tabs
+• Sort links into collections and folders, with stars and locks.
+• Search everything you saved, or see it grouped by site.
 • Select tabs and move them to another collection or a new one. Shift-click selects a range.
 
-Restore
+Restore tabs
 • Open TabTuck with Alt+Q or the toolbar icon.
-• Restore one link or a whole collection in the current window.
-• Deleted tabs wait in the Bin for 30 days, or the time you choose, so you can restore them.
+• Restore one link or a whole collection in the current window, or restore it and keep it saved.
+• Undo a delete you didn't mean to make. Deleted tabs also wait in the Bin for 30 days, or the time you choose.
 
-Move your data
-• Import tabs from a list of links, or restore a TabTuck backup.
-• Back up as JSON or export as text.
+Import and export
+• Import a list of links, one per line. Lines written as "URL | title" keep their titles, and a blank line starts a new collection, so a OneTab export comes in as it is.
+• Back up everything as JSON, export your tabs as text, or copy links as a Markdown list.
 
-Light and dark themes. Shortcuts can be changed on the browser's extension shortcuts page.
+Private by design
+No account, no server, no analytics, and no ads. Everything stays in your browser's local storage, and TabTuck makes no network requests.
 
-Private by design: no account, no server, no analytics, and no ads. Everything stays in your browser's local storage, and TabTuck makes no network requests.
+Works in Chrome and any other Chromium browser, such as Edge, Brave and Helium. Light and dark themes. Shortcuts can be changed on the browser's extension shortcuts page.
 
 Source code: https://github.com/Subhransu-De/TabTuck
 ```
