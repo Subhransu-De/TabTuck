@@ -6,6 +6,8 @@ Pull requests add their user-visible changes under Unreleased. The Release workf
 
 ## Unreleased
 
+## [1.2.2] - 2026-11-16
+
 ### Changed
 
 - The extension is named "TabTuck: Save Tabs for Later" in the store and on the extensions page, and its summary says it is a private tab manager instead of promising tab groups, which TabTuck leaves alone. The toolbar and shortcuts still say TabTuck. ([#21](https://github.com/Subhransu-De/TabTuck/pull/21))

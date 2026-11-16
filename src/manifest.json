@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TabTuck: Save Tabs for Later",
   "short_name": "TabTuck",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A private tab manager: save tabs for later, sort them into collections, search them, and restore them in the same window.",
   "permissions": ["tabs", "storage", "contextMenus", "favicon"],
   "background": {
