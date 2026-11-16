@@ -32,7 +32,7 @@ export function parseReport(output: string): {
   return { errors: report.errors, warnings: report.warnings };
 }
 // web-ext validates Firefox packages. These four diagnostics are specific to
-// Firefox and do not apply to this Chromium/Helium Manifest V3 package.
+// Firefox and do not apply to this Chromium Manifest V3 package.
 export function isFirefoxOnly(issue: Issue) {
   if (issue.file !== "manifest.json") return false;
   if (

@@ -317,7 +317,7 @@ try {
   assert.equal(windows.length, 2);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: Helium UI capture, pinned exclusion, window isolation, single/selected restore, import, search, lock, delete/undo, persistence, settings, backup, long-list scrolling, responsive layout; no page errors.",
+    "PASS: UI capture, pinned exclusion, window isolation, single/selected restore, import, search, lock, delete/undo, persistence, settings, backup, long-list scrolling, responsive layout; no page errors.",
   );
 } finally {
   await context.close();
