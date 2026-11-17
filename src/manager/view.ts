@@ -45,6 +45,7 @@ function sameGroup(a: TabGroup, b: TabGroup) {
           tab.id === next.id &&
           tab.url === next.url &&
           tab.title === next.title &&
+          tab.siteName === next.siteName &&
           tab.addedAt === next.addedAt &&
           tab.sourceLocked === next.sourceLocked
         );
@@ -168,6 +169,9 @@ export class Views {
   // Named from the whole library so a site reads the same in every view.
   siteName(host: string) {
     return siteNames(this.all).get(host) ?? siteLabel(host);
+  }
+  collectionLabel(group: TabGroup) {
+    return collectionLabel(group, siteNames(this.all));
   }
   // Tabs in scope that match the search, before the second-column facet.
   scoped(scope: string, query: string): Entry[] {
@@ -342,7 +346,7 @@ export function listHeading(views: Views, scope: string, facet: string) {
   const group = scope.startsWith("group:")
     ? views.lib.index.get(scope.slice(6))
     : undefined;
-  if (group) return collectionLabel(group);
+  if (group) return views.collectionLabel(group);
   if (scope === "starred") return "Starred";
   return scope.startsWith("folder:") ? scope.slice(7) : "All tabs";
 }

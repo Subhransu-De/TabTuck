@@ -1,5 +1,6 @@
 // DOM-free views of the library used by the three manager columns.
 import type { SavedTab, TabGroup } from "../shared/types.ts";
+import { nameSites, siteAddress, siteOf } from "../shared/site.ts";
 
 export interface Entry {
   readonly tab: SavedTab;
@@ -16,28 +17,17 @@ export interface SiteCount {
 }
 export type Bucket = "all" | "today" | "yesterday" | "week" | "earlier";
 
-// One copy of each host name, however many tabs share it.
+// One copy of each site key, however many tabs share it.
 const hosts = new Map<string, string>();
 export function hostOf(url: string) {
-  let host: string;
-  try {
-    host = new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
+  const host = siteOf(url);
   const shared = hosts.get(host);
   if (shared !== undefined) return shared;
   hosts.set(host, host);
   return host;
 }
 export function siteLabel(host: string) {
-  return host || "Local files";
-}
-// "mail.google.com" -> "mail.google", "imdb.com" -> "imdb".
-function shortName(host: string) {
-  if (!host) return "local files";
-  const parts = host.split(".");
-  return parts.length > 1 ? parts.slice(0, -1).join(".") : host;
+  return siteAddress(host);
 }
 
 // Each tab's search text, built the first time a search reads it and dropped
@@ -135,81 +125,21 @@ export function bulletList(tabs: SavedTab[]) {
     .join("\n");
 }
 
-// The registrable part of a host: "doc.rust-lang.org" -> "rust-lang",
-// "news.bbc.co.uk" -> "bbc".
-// Sites whose own spelling a capital first letter gets wrong, for when no
-// tab title names the site. Keys are a brand or, for short brands, a host.
-const KNOWN_NAMES: Record<string, string> = {
-  arxiv: "arXiv",
-  github: "GitHub",
-  gitlab: "GitLab",
-  linkedin: "LinkedIn",
-  stackoverflow: "Stack Overflow",
-  ycombinator: "Hacker News",
-  youtube: "YouTube",
-  "web.dev": "web.dev",
-};
-export function brandOf(host: string) {
-  const parts = host.split(".");
-  if (parts.length < 2) return host;
-  const tail =
-    parts.length > 2 && parts.at(-1)!.length === 2 && parts.at(-2)!.length <= 3;
-  return parts.at(tail ? -3 : -2)!;
-}
-const compact = (text: string) =>
-  text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-const SEPARATOR = /\s+[-|·•—–:]\s+/;
-// Pages usually carry the site's own spelling of its name at either end of
-// their title: "Biutiful (2010) - IMDb", "GitHub - rust-lang/rust".
-function nameInTitle(title: string, brand: string) {
-  const parts = title.split(SEPARATOR);
-  const ends = parts.length > 1 ? [parts[0], parts.at(-1)!] : [title];
-  for (const end of ends) {
-    const words = end.trim().split(/\s+/);
-    for (let i = 0; i < words.length; i++)
-      for (let j = i + 1; j <= Math.min(words.length, i + 3); j++) {
-        const name = words
-          .slice(i, j)
-          .join(" ")
-          .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
-        if (compact(name) === brand) return name;
-      }
-  }
-  return null;
-}
-// A readable name per host, taken from its saved tab titles, else from the
-// domain. Hosts that would share a name keep their domain instead.
+// A readable name per site, from the whole list. See nameSites.
 const nameCache = new WeakMap<Entry[], Map<string, string>>();
 export function siteNames(list: Entry[]): Map<string, string> {
   let names = nameCache.get(list);
-  if (names) return names;
-  const votes = new Map<string, Map<string, number>>();
-  for (const { host, tab } of list) {
-    const tally = votes.get(host) ?? new Map<string, number>();
-    votes.set(host, tally);
-    const brand = compact(brandOf(host));
-    const name = brand ? nameInTitle(tab.title, brand) : null;
-    if (name) tally.set(name, (tally.get(name) ?? 0) + 1);
-  }
-  names = new Map();
-  for (const [host, tally] of votes) {
-    const best = [...tally].sort((a, b) => b[1] - a[1])[0]?.[0];
-    const brand = brandOf(host);
-    names.set(
-      host,
-      host
-        ? (best ??
-            KNOWN_NAMES[host] ??
-            KNOWN_NAMES[brand] ??
-            brand.charAt(0).toUpperCase() + brand.slice(1))
-        : siteLabel(host),
+  if (!names) {
+    names = nameSites(
+      list.map(({ host, tab }) => ({
+        key: host,
+        url: tab.url,
+        title: tab.title,
+        siteName: tab.siteName,
+      })),
     );
+    nameCache.set(list, names);
   }
-  const seen = new Map<string, number>();
-  for (const name of names.values()) seen.set(name, (seen.get(name) ?? 0) + 1);
-  for (const [host, name] of names)
-    if (seen.get(name)! > 1) names.set(host, siteLabel(host));
-  nameCache.set(list, names);
   return names;
 }
 
@@ -232,19 +162,23 @@ export function groupSites(group: TabGroup) {
   return sites(groupEntries(group));
 }
 
-export function collectionLabel(group: TabGroup) {
+// A collection the user made: named, put in a folder, starred or locked.
+// Every other one is just a save, listed by time and site, not by itself.
+export const madeByUser = (g: TabGroup) =>
+  !!g.name.trim() || !!g.folder || g.starred || g.locked;
+
+// Unnamed collections read as their top two sites, by the names the whole
+// library gives them when known.
+export function collectionLabel(group: TabGroup, names?: Map<string, string>) {
   if (group.name) return group.name;
   // Ties go by host, so a site's display name never reorders the label.
   const top = [...groupSites(group)].sort(
     (a, b) => b.count - a.count || a.host.localeCompare(b.host),
   );
   if (!top.length) return "Empty collection";
-  let names = top.slice(0, 2).map((s) => shortName(s.host));
-  // "example.com" and "example.org" would both read "example".
-  if (names.length > 1 && names[0] === names[1])
-    names = top.slice(0, 2).map((s) => siteLabel(s.host));
-  const rest = top.length - names.length;
-  return names.join(", ") + (rest > 0 ? ` +${rest}` : "");
+  const shown = top.slice(0, 2).map((s) => names?.get(s.host) ?? s.label);
+  const rest = top.length - shown.length;
+  return shown.join(", ") + (rest > 0 ? ` +${rest}` : "");
 }
 
 // Calendar days, not 24-hour blocks, so daylight-saving changes do not move

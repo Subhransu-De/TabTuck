@@ -169,14 +169,18 @@ try {
     .click({ position: { x: 300, y: 10 }, modifiers: ["Shift"] });
   assert.equal(await page.locator(".tab-row.selected").count(), 1);
   await page.keyboard.press("Escape");
-  // A collection outside any folder has its own row in the sidebar. The Alpha
-  // and Beta collection opens its details in the second column.
+  // Imported link lists are saves, not collections the user made, so the
+  // sidebar lists none of them. Once named, the Alpha and Beta collection has
+  // its own row, which opens its details in the second column.
   const pair = (await invoke({ type: "state" })).groups.find(
     (g) => g.tabs.length === 2,
   )!;
   const alphaGroup = page.locator(
     `#navigation .row.collection[data-group="${pair.id}"]`,
   );
+  assert.equal(await page.locator("#navigation .row.collection").count(), 0);
+  await invoke({ type: "update", groupId: pair.id, patch: { name: "Pair" } });
+  await alphaGroup.waitFor();
   await alphaGroup.click();
   // Escape in the restore menu closes the menu and leaves the selection.
   await page.locator("#select-all").check();

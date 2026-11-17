@@ -65,11 +65,29 @@ The Makefile is the command entry point; its recipes use the portable Bun script
 | `tests/unit/`       | Model, service worker, and validation tests                    |
 | `tests/browser/`    | Browser workflows against the built extension                  |
 | `scripts/`          | Packaging, extension validation, package audit, and publishing |
+| `dev/`              | Dev server, extension API stand-in, and synthetic test data    |
 | `dist/`             | Generated unpacked extension and ZIP; ignored by Git           |
 
 The manager sends messages to the background worker for storage and browser operations. Shared modules must remain usable without a DOM; UI rendering belongs in the manager. `src/shared/types.ts` defines stored data and the message protocol. The build bundles the worker and manager TypeScript entry points into browser JavaScript, follows their imports automatically, and copies an explicit allowlist of static assets from `scripts/package-files.ts`. The manager builds into two files: `manage.js` with React and the page, and `dialogs.js`, which loads the first time a dialog opens and takes React from `manage.js` (see `scripts/manager-build.ts`). Chrome loads only the compiled output; TypeScript and development files are excluded from the package.
 
 Edit `src/manager/manage.css`; compiled CSS is generated only in `dist/TabTuck/manager/`. Use `make watch-css` for CSS changes. Rebuild and reload the extension after TypeScript, HTML, or manifest changes.
+
+### Dev server
+
+`make dev` serves the manager at http://127.0.0.1:5178/ (set `PORT` to change it). It listens on this machine only. Open it in any browser; no extension install is needed. The page runs TabTuck's real manager and background code. `dev/extension-api/` supplies the `chrome.*` calls they make, keeping saved data in the page's `localStorage` and a window of demo tabs to save. Edits rebuild only the bundle they touch and reload the page; CSS edits swap the stylesheet without a reload.
+
+Pick a data set with `?scenario=<name>&seed=<number>`, or from the Dev button in the corner, which can also reset the data, reopen the demo tabs and move the clock by whole days. Each scenario and seed keeps its own data.
+
+| Scenario       | Data                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `typical`      | About 500 tabs on 200 sites over two months, a few named collections, folders and a bin |
+| `first-run`    | Nothing saved yet; the data notice shows first                                          |
+| `heavy`        | About 5,000 tabs, past the 1,000-tab fast-save path                                     |
+| `naming`       | Every way a site gets its name, and every kind of address                               |
+| `bin-expiring` | A 24-hour bin with deletes about to be erased                                           |
+| `long-text`    | Very long, right-to-left, emoji and empty titles                                        |
+
+All data is synthetic and built from a seed in `dev/fixtures/`. Hosts use the reserved `.example` and `.test` names, so dev data never names a real site; `tests/unit/dev-fixtures.test.ts` enforces this. Restart the server after editing `dev/server.ts` itself.
 
 TypeScript linting rejects explicit `any` and unsafe uses of types inferred as `any` from external APIs.
 

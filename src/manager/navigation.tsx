@@ -1,7 +1,7 @@
 // Column one: the scopes, the folders with their collections, and the sites.
 import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { TabGroup } from "../shared/types.ts";
-import { ago, collectionLabel, plural, siteLabel } from "./library.ts";
+import { ago, madeByUser, plural, siteLabel } from "./library.ts";
 import {
   type FolderView,
   type Hits,
@@ -80,6 +80,7 @@ const SiteRow = memo(function SiteRow({
 
 const CollectionRow = memo(function CollectionRow({
   group: g,
+  label,
   count,
   on,
   dim,
@@ -88,6 +89,7 @@ const CollectionRow = memo(function CollectionRow({
   folding = false,
 }: {
   group: TabGroup;
+  label: string;
   count: number;
   on: boolean;
   dim: boolean;
@@ -98,7 +100,6 @@ const CollectionRow = memo(function CollectionRow({
 }) {
   // Only rows coming into view unfold; rows already shown stay put.
   const [unfold] = useState(unfolding);
-  const label = collectionLabel(g);
   const lead = leadUrl(g);
   return (
     <button
@@ -194,6 +195,7 @@ function Folder({
           <CollectionRow
             key={g.id}
             group={g}
+            label={views.collectionLabel(g)}
             count={views.live([g]).length}
             on={scope === `group:${g.id}`}
             dim={!!hits && !hits.groups.has(g.id)}
@@ -224,9 +226,11 @@ export const Navigation = memo(function Navigation({
   hits: Hits | null;
 }) {
   const folderList = useMemo(() => (views ? folders(views) : []), [views]);
-  // Collections outside any folder follow the folders, newest first.
+  // Collections outside any folder follow the folders, newest first. Only
+  // collections the user made are listed, not every save.
   const unfiled = useMemo(
-    () => (views ? views.lib.ordered.filter((g) => !g.folder) : []),
+    () =>
+      views ? views.lib.ordered.filter((g) => !g.folder && madeByUser(g)) : [],
     [views],
   );
   const siteList = useMemo(() => (views ? siteViews(views.all) : []), [views]);
@@ -321,6 +325,11 @@ export const Navigation = memo(function Navigation({
           {icon("plus")}
         </button>
       </div>
+      {!folderList.length && !unfiled.length && (
+        <p className="quiet">
+          Select tabs and press Move to make a collection.
+        </p>
+      )}
       {(folderList.length > 0 || unfiled.length > 0) && (
         <div className="well">
           {folderList.map((f) => (
@@ -339,6 +348,7 @@ export const Navigation = memo(function Navigation({
             <CollectionRow
               key={g.id}
               group={g}
+              label={views.collectionLabel(g)}
               count={views.live([g]).length}
               on={scope === `group:${g.id}`}
               dim={!!hits && !hits.groups.has(g.id)}

@@ -2,6 +2,9 @@ export interface SavedTab {
   id: string;
   url: string;
   title: string;
+  // The name the page declared for its site when it was saved, if it could
+  // be read: og:site_name, application-name or apple-mobile-web-app-title.
+  siteName?: string;
   addedAt?: number;
   sourceLocked?: boolean;
 }

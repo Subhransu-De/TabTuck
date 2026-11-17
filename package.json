@@ -19,7 +19,8 @@
     "lint": "bun run lint:js && bun run lint:css",
     "test:restore": "bun tests/browser/restore-ui-check.ts",
     "audit:dependencies": "bun audit --audit-level high",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "bun dev/server.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

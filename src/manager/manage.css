@@ -587,6 +587,12 @@ body {
     color: #fff;
     font: 700 10.5px/1 var(--tt-font-display);
   }
+  /* Centre the capital, not the font's em box, which reaches further below
+     the baseline than above the cap height. The letter is a grid item, a
+     block, so the trim applies to it. */
+  .monogram > span {
+    text-box: trim-both cap alphabetic;
+  }
   /* Black favicons vanish on the dark theme and white ones on the light
      theme; set those on a small tile of the opposite tone. */
   body.dark .site-mark[data-tone="dark"],
@@ -830,6 +836,10 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* A row's note wraps instead of cutting off: it explains the row. */
+  .stack > .sub {
+    white-space: normal;
   }
   .sub {
     color: var(--tt-ink-2);

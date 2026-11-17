@@ -20,6 +20,7 @@ import {
   capturePrefix,
 } from "../shared/model.ts";
 import { folderIcons } from "../shared/folder-icons.ts";
+import { declaredName } from "../shared/site.ts";
 let queue: Promise<unknown> = Promise.resolve();
 export function serial<T>(fn: () => T | Promise<T>) {
   const task = queue.then(fn);
@@ -248,6 +249,48 @@ export async function show(windowId: number) {
     ? chrome.tabs.update(existing.id!, { active: true })
     : chrome.tabs.create({ windowId, url, active: true });
 }
+// Runs inside the page, so it must not use anything from this file.
+function readSiteName() {
+  for (const selector of [
+    'meta[property="og:site_name"]',
+    'meta[name="application-name"]',
+    'meta[name="apple-mobile-web-app-title"]',
+  ]) {
+    const value = document.querySelector(selector)?.getAttribute("content");
+    if (value?.trim()) return value;
+  }
+  return "";
+}
+// The site name each tab's page declares. TabTuck may read a page only while
+// Chrome grants it the tab: the tab the user was on when they clicked
+// TabTuck's button, used its shortcut or opened its menu. Every other tab is
+// refused at once and simply keeps no declared name. No page is fetched.
+async function declaredNames(tabs: chrome.tabs.Tab[]) {
+  const names = new Map<number, string>();
+  if (!chrome.scripting) return names;
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (tab.id === undefined || tab.discarded) return;
+      try {
+        const [result] = await Promise.race([
+          chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: readSiteName,
+          }),
+          // A page still loading must not hold up saving.
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 300),
+          ),
+        ]);
+        const name = declaredName(result?.result);
+        if (name) names.set(tab.id, name);
+      } catch {
+        // No access to this tab: it is named from its title instead.
+      }
+    }),
+  );
+  return names;
+}
 export async function capture(
   mode: CaptureMode,
   windowId: number,
@@ -294,14 +337,17 @@ export async function capture(
       urls: new Set(state.groups.flatMap((g) => g.tabs.map((t) => t.url))),
     };
   const seen = settings.deduplicate ? urlIndex!.urls : new Set<string>();
+  const declared = await declaredNames(chosen);
   const saved: SavedTab[] = [];
   for (const tab of chosen) {
     const url = safeUrl(tab.url || tab.pendingUrl);
     if (url && !seen.has(url)) {
+      const siteName = declared.get(tab.id!);
       saved.push({
         id: uid(),
         url,
         title: tab.title || url,
+        ...(siteName ? { siteName } : {}),
         addedAt: Date.now(),
       });
       if (settings.deduplicate) seen.add(url);
