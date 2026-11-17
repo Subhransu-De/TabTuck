@@ -6,6 +6,8 @@ Pull requests add their user-visible changes under Unreleased. The Release workf
 
 ## Unreleased
 
+## [1.2.3] - 2026-11-17
+
 ### Changed
 
 - The Collections list in the sidebar shows only collections you made: ones you named, put in a folder, starred or locked. Each save no longer appears there as a collection of its own; its tabs stay under Recent, All tabs and Sites. Moving tabs to a new collection asks for its name. ([#22](https://github.com/Subhransu-De/TabTuck/pull/22))
