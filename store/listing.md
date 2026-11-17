@@ -83,7 +83,7 @@ TabTuck saves the browser tabs the user chooses, lets the user organize them, an
 
 **Are you using remote code?** No, I am not using remote code.
 
-**Data usage, what user data do you collect:** Web history (the URLs and titles of tabs the user saves). The data stays on the device and is never sent anywhere.
+**Data usage, what user data do you collect:** Web history (the URLs and titles of tabs the user saves) and Website content (the site name a saved page declares in its meta tags). The data stays on the device and is never sent anywhere.
 
 **Certifications:** tick all three.
 
