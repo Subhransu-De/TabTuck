@@ -12,7 +12,7 @@ import type {
   TabGroup,
 } from "../shared/types.ts";
 import { capturePrefix, exportText, HOUR } from "../shared/model.ts";
-import { bulletList, collectionLabel, plural } from "./library.ts";
+import { bulletList, plural } from "./library.ts";
 import { nextLibrary, validScope, Views } from "./view.ts";
 import {
   anchor,
@@ -328,7 +328,7 @@ export const moveSelected = () =>
           .groups.filter((g) => !g.locked)
           .map((g) => [
             g.id,
-            `${collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
+            `${views().collectionLabel(g)} ·${plural(g.tabs.length, "tab")}`,
           ]),
       ],
     });
@@ -424,7 +424,7 @@ export const newFolder = () =>
       action: "Create folder",
       options: state().groups.map((g) => [
         g.id,
-        `${collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
+        `${views().collectionLabel(g)} ·${plural(g.tabs.length, "tab")}`,
       ]),
     });
     if (groupId)

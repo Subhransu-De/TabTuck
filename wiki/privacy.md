@@ -1,6 +1,6 @@
 # TabTuck privacy policy
 
-Last updated: 24 October 2026
+Last updated: 17 November 2026
 
 TabTuck saves the browser tabs you choose and restores them later. Everything it saves stays in your browser, on your device. TabTuck has no account, no server, no analytics, no ads, and no tracking. It never sends your data anywhere, and nobody but you can see it.
 
@@ -8,7 +8,7 @@ TabTuck saves the browser tabs you choose and restores them later. Everything it
 
 TabTuck stores nothing about your tabs until you agree to the notice it shows before your first save. After that, it stores:
 
-- **Saved tabs**: the address (URL) and title of each tab you save, and the time you saved it.
+- **Saved tabs**: the address (URL) and title of each tab you save, and the time you saved it. A user name or password written into an address is removed before it is saved. When the page declares a name for its site, that name is kept too.
 - **How you organize them**: collection names, folders and their icons, stars, locks, and whether a collection is folded closed.
 - **The Bin**: tabs you delete, with the time you deleted them, so you can restore them or undo the delete. "How long it is kept" below says when they are erased.
 - **Your options**: the theme, the other choices in Options, how long the Bin keeps tabs, and that you agreed to the notice.
@@ -20,6 +20,8 @@ That is the full list. TabTuck does not store the content of pages, your browsin
 ## When TabTuck reads your tabs
 
 TabTuck reads the address and title of open tabs only when you ask it to save, with the toolbar page, the right-click menu, or a keyboard shortcut. It keeps only the tabs you chose. Pinned tabs and tabs in browser tab groups are skipped.
+
+When you save a tab with the toolbar button, the right-click menu or a keyboard shortcut, Chrome lets TabTuck look at that one page for a moment. TabTuck uses this only to read the name the site gives itself in the page's own tags (`og:site_name`, `application-name` or `apple-mobile-web-app-title`) and stores that name with the tab. It reads nothing else from the page, and it cannot read pages you did not save this way.
 
 When you open TabTuck, it also looks at the addresses of the tabs in the current window to see if its own page is already open. It stores nothing from that check.
 

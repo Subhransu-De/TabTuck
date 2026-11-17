@@ -1,4 +1,5 @@
 import type { SavedTab, TabGroup, Settings } from "./types.ts";
+import { declaredName, siteAddress, siteOf } from "./site.ts";
 export const defaults: Settings = {
   keepRestored: false,
   deduplicate: false,
@@ -15,8 +16,7 @@ export function groupBySites(groups: TabGroup[]): TabGroup[] {
   const sites = new Map<string, TabGroup>();
   for (const source of [...groups].sort((a, b) => b.createdAt - a.createdAt)) {
     for (const tab of source.tabs) {
-      const url = new URL(tab.url);
-      const site = url.hostname.replace(/^www\./, "") || "Local files";
+      const site = siteAddress(siteOf(tab.url));
       if (!sites.has(site))
         sites.set(site, {
           id: `site:${site}`,
@@ -45,12 +45,16 @@ export function groupBySites(groups: TabGroup[]): TabGroup[] {
     }))
     .sort((a, b) => b.createdAt - a.createdAt);
 }
+// The address to save, or null for schemes TabTuck never saves. A user name
+// and password in the address are dropped, so they never reach storage.
 export function safeUrl(value: string | undefined) {
   try {
     const url = new URL(value ?? "");
-    return ["http:", "https:", "file:", "ftp:"].includes(url.protocol)
-      ? url.href
-      : null;
+    if (!["http:", "https:", "file:", "ftp:"].includes(url.protocol))
+      return null;
+    url.username = "";
+    url.password = "";
+    return url.href;
   } catch {
     return null;
   }
@@ -107,10 +111,12 @@ export function parseImport(text: string): TabGroup[] {
             const url = safeUrl(typeof t.url === "string" ? t.url : undefined);
             if (!url)
               throw new Error("The backup contains an unsupported URL.");
+            const siteName = declaredName(t.siteName);
             return {
               id: uid(),
               url,
               title: typeof t.title === "string" ? t.title : url,
+              ...(siteName ? { siteName } : {}),
               addedAt: isTimestamp(t.addedAt)
                 ? t.addedAt
                 : isTimestamp(g.createdAt)

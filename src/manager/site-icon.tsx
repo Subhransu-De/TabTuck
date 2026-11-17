@@ -1,7 +1,7 @@
 // Favicons from the browser's cache, set on a contrasting tile when they would
 // vanish into the theme, and a letter tile when the site has none.
 import { useState, type CSSProperties } from "react";
-import { brandOf, hostOf } from "./library.ts";
+import { hostOf } from "./library.ts";
 import { icon } from "./ui-icons.tsx";
 
 function faviconUrl(pageUrl: string) {
@@ -63,7 +63,7 @@ const looks = new Map<string, string>();
 // Sites without an icon get their initial on a colour of their own, the way
 // the browser's new tab page shows them.
 function Monogram({ url }: { url: string }) {
-  const brand = brandOf(hostOf(url));
+  const brand = hostOf(url);
   let hash = 0;
   for (const char of brand) hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
   return (

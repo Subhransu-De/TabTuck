@@ -3,14 +3,7 @@
 import { memo, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { HOUR } from "../shared/model.ts";
 import type { TabGroup } from "../shared/types.ts";
-import {
-  type Entry,
-  ago,
-  collectionLabel,
-  plural,
-  shortLeft,
-  siteLabel,
-} from "./library.ts";
+import { type Entry, ago, plural, shortLeft, siteLabel } from "./library.ts";
 import { duration } from "./bin-time.ts";
 import { type Facets as FacetData, type Views, leadUrl } from "./view.ts";
 import {
@@ -296,7 +289,7 @@ export const ScopeHead = memo(function ScopeHead({
   const restoreShown = (keep: boolean) => restore({ ids: shownIds(), keep });
   if (group) {
     const g = group;
-    const label = collectionLabel(g);
+    const label = views.collectionLabel(g);
     const lead = leadUrl(g);
     title = (
       <button

@@ -79,3 +79,31 @@ test("JSON import preserves per-link dates independently of group dates", () => 
   );
   expect(result[0].tabs.map((t) => t.addedAt)).toEqual([1000, 3000]);
 });
+test("saved addresses drop a user name and password", () => {
+  expect(safeUrl("https://user:secret@example.com/a?b=1")).toBe(
+    "https://example.com/a?b=1",
+  );
+  expect(safeUrl("ftp://anonymous@ftp.gnu.org/pub")).toBe(
+    "ftp://ftp.gnu.org/pub",
+  );
+});
+test("JSON import keeps a valid declared site name and drops others", () => {
+  const [result] = parseImport(
+    JSON.stringify({
+      groups: [
+        {
+          tabs: [
+            { url: "https://a.example/", siteName: " Example  Docs " },
+            { url: "https://b.example/", siteName: "x".repeat(80) },
+            { url: "https://c.example/", siteName: 7 },
+          ],
+        },
+      ],
+    }),
+  );
+  expect(result.tabs.map((t) => t.siteName)).toEqual([
+    "Example Docs",
+    undefined,
+    undefined,
+  ]);
+});

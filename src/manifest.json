@@ -4,7 +4,14 @@
   "short_name": "TabTuck",
   "version": "1.2.2",
   "description": "A private tab manager: save tabs for later, sort them into collections, search them, and restore them in the same window.",
-  "permissions": ["tabs", "storage", "contextMenus", "favicon"],
+  "permissions": [
+    "tabs",
+    "storage",
+    "contextMenus",
+    "favicon",
+    "activeTab",
+    "scripting"
+  ],
   "background": {
     "service_worker": "background/background.js",
     "type": "module"
