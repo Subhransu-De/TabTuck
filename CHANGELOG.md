@@ -6,6 +6,17 @@ Pull requests add their user-visible changes under Unreleased. The Release workf
 
 ## Unreleased
 
+### Changed
+
+- The Collections list in the sidebar shows only collections you made: ones you named, put in a folder, starred or locked. Each save no longer appears there as a collection of its own; its tabs stay under Recent, All tabs and Sites. Moving tabs to a new collection asks for its name.
+- Sites are named without any built-in list of site names. A site uses the name its pages declare (such as `og:site_name`), then the way its titles spell its address (such as GitHub), then the first part of its address: github.com and github.io both read "Github", and example.github.io reads "Example".
+- To read a page's declared site name, TabTuck asks for the `activeTab` and `scripting` permissions, which add no install warning. It reads only the tab you were on when you clicked the TabTuck button, used its shortcut or opened its menu.
+
+### Fixed
+
+- A user name or password written into a saved address is removed before it is saved.
+- Letter icons for sites without a favicon are centred in their tile, and a collection's Locked note says "Can’t delete or move tabs" in full instead of cutting off.
+
 ## [1.2.2] - 2026-11-16
 
 ### Changed

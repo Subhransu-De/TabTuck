@@ -162,6 +162,11 @@ export function groupSites(group: TabGroup) {
   return sites(groupEntries(group));
 }
 
+// A collection the user made: named, put in a folder, starred or locked.
+// Every other one is just a save, listed by time and site, not by itself.
+export const madeByUser = (g: TabGroup) =>
+  !!g.name.trim() || !!g.folder || g.starred || g.locked;
+
 // Unnamed collections read as their top two sites, by the names the whole
 // library gives them when known.
 export function collectionLabel(group: TabGroup, names?: Map<string, string>) {

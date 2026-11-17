@@ -30,6 +30,36 @@ const PARTS = [
   "vector",
   "summit",
   "fern",
+  "acorn",
+  "birch",
+  "canyon",
+  "delta",
+  "echo",
+  "falcon",
+  "garnet",
+  "heron",
+  "indigo",
+  "juniper",
+  "kite",
+  "lantern",
+  "meadow",
+  "nimbus",
+  "olive",
+  "pebble",
+  "quartz",
+  "robin",
+  "saffron",
+  "thistle",
+  "umber",
+  "willow",
+  "yarrow",
+  "zephyr",
+  "copper",
+  "harvest",
+  "lagoon",
+  "marble",
+  "prism",
+  "sparrow",
 ];
 const VERBS = [
   "Build",
@@ -63,13 +93,41 @@ const THINGS = [
   "the design tokens",
   "focus timers",
 ];
+// Everyday reading, all of it fit for any audience.
+const EVERYDAY = [
+  "Easy weeknight pasta recipes",
+  "Best day hikes near the coast",
+  "How to repot a fiddle leaf fig",
+  "Beginner guitar chords",
+  "Packing list for a weekend trip",
+  "Sourdough starter troubleshooting",
+  "Top board games for families",
+  "How to fix a squeaky door",
+  "Marathon training plan for beginners",
+  "Rainy day museum ideas",
+  "Choosing a first telescope",
+  "Budget meal prep for the week",
+  "Watercolor basics",
+  "Train routes across the Alps",
+  "How to start a vegetable garden",
+  "Photography tips for golden hour",
+  "Cozy mystery novels to read next",
+  "Learning Spanish in ten minutes a day",
+  "Home office lighting ideas",
+  "Bike maintenance checklist",
+  "Science fair project ideas",
+  "Camping gear for cold nights",
+  "Tea brewing temperatures",
+  "Birdwatching for beginners",
+];
 const PEOPLE = ["ana", "bo", "chidi", "dana", "eli", "farah", "goran", "hana"];
 
 export interface Site {
   // Draws one page of the site.
   page(r: Random): OpenPage;
 }
-const topic = (r: Random) => `${r.pick(VERBS)} ${r.pick(THINGS)}`;
+const topic = (r: Random) =>
+  r.chance(0.5) ? r.pick(EVERYDAY) : `${r.pick(VERBS)} ${r.pick(THINGS)}`;
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 // A site whose titles carry its own spelling: "Plan trip notes - NoteForge".

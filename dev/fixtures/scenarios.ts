@@ -30,12 +30,13 @@ const page = (line: string, declared?: string): OpenPage => {
 
 export const scenarios: Record<string, Scenario> = {
   typical: {
-    description: "About 300 tabs over two months, with folders and a bin",
+    description:
+      "About 500 tabs on 200 sites over two months, a few named collections, folders and a bin",
     build: (r, now) => ({
       state: library(r, now, {
-        collections: 40,
-        tabs: [1, 12],
-        sites: 30,
+        collections: 100,
+        tabs: [2, 8],
+        sites: 240,
         bin: 4,
       }),
       pages: openPages(r),

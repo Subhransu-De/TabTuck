@@ -76,7 +76,7 @@ function Monogram({ url }: { url: string }) {
       aria-hidden="true"
       style={{ "--hue": hash % 360 } as CSSProperties}
     >
-      {(letter ?? "?").toUpperCase()}
+      <span>{(letter ?? "?").toUpperCase()}</span>
     </span>
   );
 }

@@ -168,7 +168,7 @@ function GroupTray({ views, group: g }: { views: Views; group: TabGroup }) {
           name="lock"
           label="Locked"
           symbol={icon(g.locked ? "lock" : "unlock")}
-          sub={g.locked ? "Tabs here can’t be deleted" : undefined}
+          sub={g.locked ? "Can’t delete or move tabs" : undefined}
           checked={g.locked}
           onChange={() => toggleLock(g)}
         />

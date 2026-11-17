@@ -78,14 +78,14 @@ Edit `src/manager/manage.css`; compiled CSS is generated only in `dist/TabTuck/m
 
 Pick a data set with `?scenario=<name>&seed=<number>`, or from the Dev button in the corner, which can also reset the data, reopen the demo tabs and move the clock by whole days. Each scenario and seed keeps its own data.
 
-| Scenario       | Data                                                      |
-| -------------- | --------------------------------------------------------- |
-| `typical`      | About 300 tabs over two months, with folders and a bin    |
-| `first-run`    | Nothing saved yet; the data notice shows first            |
-| `heavy`        | About 5,000 tabs, past the 1,000-tab fast-save path       |
-| `naming`       | Every way a site gets its name, and every kind of address |
-| `bin-expiring` | A 24-hour bin with deletes about to be erased             |
-| `long-text`    | Very long, right-to-left, emoji and empty titles          |
+| Scenario       | Data                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------- |
+| `typical`      | About 500 tabs on 200 sites over two months, a few named collections, folders and a bin |
+| `first-run`    | Nothing saved yet; the data notice shows first                                          |
+| `heavy`        | About 5,000 tabs, past the 1,000-tab fast-save path                                     |
+| `naming`       | Every way a site gets its name, and every kind of address                               |
+| `bin-expiring` | A 24-hour bin with deletes about to be erased                                           |
+| `long-text`    | Very long, right-to-left, emoji and empty titles                                        |
 
 All data is synthetic and built from a seed in `dev/fixtures/`. Hosts use the reserved `.example` and `.test` names, so dev data never names a real site; `tests/unit/dev-fixtures.test.ts` enforces this. Restart the server after editing `dev/server.ts` itself.
 

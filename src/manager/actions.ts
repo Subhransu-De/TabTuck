@@ -12,7 +12,7 @@ import type {
   TabGroup,
 } from "../shared/types.ts";
 import { capturePrefix, exportText, HOUR } from "../shared/model.ts";
-import { bulletList, plural } from "./library.ts";
+import { bulletList, madeByUser, plural } from "./library.ts";
 import { nextLibrary, validScope, Views } from "./view.ts";
 import {
   anchor,
@@ -325,7 +325,7 @@ export const moveSelected = () =>
       options: [
         ["", "New collection"],
         ...state()
-          .groups.filter((g) => !g.locked)
+          .groups.filter((g) => !g.locked && madeByUser(g))
           .map((g) => [
             g.id,
             `${views().collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
@@ -333,6 +333,17 @@ export const moveSelected = () =>
       ],
     });
     if (targetId === null) return;
+    // A new collection is one the user makes, so it starts with a name.
+    const name = targetId
+      ? ""
+      : (
+          await ask("New collection", {
+            value: "",
+            description: "Name the collection for the selected tabs.",
+            action: "Create",
+          })
+        )?.trim();
+    if (name === undefined || (!targetId && !name)) return;
     const homeOf = (groups: TabGroup[]) =>
       new Map(groups.flatMap((g) => g.tabs.map((t) => [t.id, g.id] as const)));
     const before = homeOf(state().groups);
@@ -340,6 +351,7 @@ export const moveSelected = () =>
       type: "move",
       ids: movable,
       targetId: targetId || undefined,
+      name: name || undefined,
     });
     // Count what actually moved: a collection locked elsewhere while the
     // dialog was open keeps its tabs, and they stay selected.
@@ -416,13 +428,14 @@ export const newFolder = () =>
       action: "Next",
     });
     if (!folder?.name.trim()) return;
-    if (!state().groups.length) {
-      toast("Save or import a collection first.");
+    const made = state().groups.filter(madeByUser);
+    if (!made.length) {
+      toast("Make a collection first: select tabs and press Move.");
       return;
     }
     const groupId = await ask("Choose a collection", {
       action: "Create folder",
-      options: state().groups.map((g) => [
+      options: made.map((g) => [
         g.id,
         `${views().collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
       ]),

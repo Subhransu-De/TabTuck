@@ -3,6 +3,7 @@ import {
   entries,
   collectionLabel,
   forgetSearchText,
+  madeByUser,
   retimed,
   siteNames,
   sites,
@@ -67,4 +68,14 @@ test("entries share host names and build search text on first use", () => {
   // Cleared searches drop the text; the next search builds it again.
   forgetSearchText();
   expect(list[1].search).toBe("two https://example.com/b  ");
+});
+
+test("only collections the user made count as collections", () => {
+  const save = group([tab("A", "https://a.example/")]);
+  expect(madeByUser(save)).toBe(false);
+  expect(madeByUser({ ...save, name: "  " })).toBe(false);
+  expect(madeByUser({ ...save, name: "Trip" })).toBe(true);
+  expect(madeByUser({ ...save, folder: "Home" })).toBe(true);
+  expect(madeByUser({ ...save, starred: true })).toBe(true);
+  expect(madeByUser({ ...save, locked: true })).toBe(true);
 });

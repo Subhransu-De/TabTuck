@@ -23,6 +23,14 @@ const NAMES = [
   "Side project",
   "Taxes",
   "Conference talks",
+  "Garden plans",
+  "Weekend hikes",
+  "Home repairs",
+  "Book club",
+  "Learning guitar",
+  "Holiday cooking",
+  "Photography",
+  "New laptop",
 ];
 // Each folder keeps one icon, as when the user picks it.
 const FOLDERS: Record<string, keyof typeof folderIcons> = {
@@ -88,21 +96,39 @@ export function library(
   },
 ): State {
   const sites = siteMix(r, size.sites);
+  let next = 0;
+  // Each name once, as people name their own collections.
+  const names = [...NAMES];
+  for (let i = names.length - 1; i > 0; i--) {
+    const j = r.int(0, i);
+    [names[i], names[j]] = [names[j], names[i]];
+  }
   const groups = Array.from({ length: size.collections }, () => {
-    // A collection mostly holds pages from a few sites.
-    const own = Array.from({ length: r.int(1, 4) }, () => r.pick(sites));
+    // A collection mostly holds pages from a few sites, taken in turn so
+    // every site shows up somewhere.
+    const own = Array.from(
+      { length: r.int(1, 4) },
+      () => sites[next++ % sites.length],
+    );
     const g = collection(
       r,
-      pagesFrom(r, own, r.int(...size.tabs)),
+      [
+        ...own.map((site) => site.page(r)),
+        ...pagesFrom(r, own, Math.max(0, r.int(...size.tabs) - own.length)),
+      ],
       savedAt(r, now),
     );
-    if (r.chance(0.25)) g.name = r.pick(NAMES);
-    if (r.chance(0.2)) {
-      g.folder = r.pick(Object.keys(FOLDERS));
-      g.folderIcon = FOLDERS[g.folder];
-    }
-    g.starred = r.chance(0.1);
-    g.locked = r.chance(0.05);
+    // Most collections are saves. A few the user made: named, and some of
+    // those filed, starred or locked. Saves are starred now and then too.
+    if (names.length && r.chance(0.15)) {
+      g.name = names.pop()!;
+      if (r.chance(0.4)) {
+        g.folder = r.pick(Object.keys(FOLDERS));
+        g.folderIcon = FOLDERS[g.folder];
+      }
+      g.starred = r.chance(0.3);
+      g.locked = r.chance(0.15);
+    } else g.starred = r.chance(0.02);
     return g;
   });
   const trash: BinEntry[] = Array.from({ length: size.bin }, () => {

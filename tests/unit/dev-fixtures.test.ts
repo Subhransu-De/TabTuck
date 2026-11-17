@@ -1,6 +1,7 @@
 import { test, expect } from "bun:test";
 import { buildScenario, scenarios } from "../../dev/fixtures/scenarios.ts";
 import { safeUrl } from "../../src/shared/model.ts";
+import { siteOf } from "../../src/shared/site.ts";
 
 const NOW = Date.UTC(2026, 10, 17, 12);
 const urlsOf = (name: string, seed: number) => {
@@ -31,6 +32,16 @@ for (const name of Object.keys(scenarios)) {
     }
   });
 }
+test("typical spans about 200 sites and a few named collections", () => {
+  const { state } = buildScenario("typical", 1, NOW);
+  const hosts = new Set(
+    state!.groups.flatMap((g) => g.tabs.map((t) => siteOf(t.url))),
+  );
+  expect(hosts.size).toBeGreaterThan(180);
+  const named = state!.groups.filter((g) => g.name);
+  expect(named.length).toBeGreaterThan(5);
+  expect(new Set(named.map((g) => g.name)).size).toBe(named.length);
+});
 test("heavy passes the 1,000-tab fast-save threshold", () => {
   const { state } = buildScenario("heavy", 1, NOW);
   const tabs = state!.groups.reduce((n, g) => n + g.tabs.length, 0);
