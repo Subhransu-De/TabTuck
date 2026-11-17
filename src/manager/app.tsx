@@ -408,14 +408,7 @@ export function App() {
           {icon("plus")}
           <span>Save this window</span>
         </Button>
-        <Navigation
-          views={views}
-          scope={scope}
-          collapsed={view.collapsed}
-          folding={view.folding}
-          unfolding={view.unfolding}
-          hits={found}
-        />
+        <Navigation views={views} scope={scope} hits={found} />
         <div className="foot foot-1">
           <Button
             id="transfer-open"
