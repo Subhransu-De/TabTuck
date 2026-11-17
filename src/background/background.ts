@@ -262,9 +262,9 @@ function readSiteName() {
   return "";
 }
 // The site name each tab's page declares. TabTuck may read a page only while
-// Chrome grants it the tab, which it does when the user saves that tab through
-// TabTuck's button, shortcut or menu. Every other tab is refused at once and
-// simply keeps no declared name. No page is fetched.
+// Chrome grants it the tab: the tab the user was on when they clicked
+// TabTuck's button, used its shortcut or opened its menu. Every other tab is
+// refused at once and simply keeps no declared name. No page is fetched.
 async function declaredNames(tabs: chrome.tabs.Tab[]) {
   const names = new Map<number, string>();
   if (!chrome.scripting) return names;

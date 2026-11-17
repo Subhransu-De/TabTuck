@@ -328,7 +328,7 @@ export const moveSelected = () =>
           .groups.filter((g) => !g.locked)
           .map((g) => [
             g.id,
-            `${views().collectionLabel(g)} ·${plural(g.tabs.length, "tab")}`,
+            `${views().collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
           ]),
       ],
     });
@@ -424,7 +424,7 @@ export const newFolder = () =>
       action: "Create folder",
       options: state().groups.map((g) => [
         g.id,
-        `${views().collectionLabel(g)} ·${plural(g.tabs.length, "tab")}`,
+        `${views().collectionLabel(g)} · ${plural(g.tabs.length, "tab")}`,
       ]),
     });
     if (groupId)

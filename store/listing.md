@@ -72,14 +72,14 @@ TabTuck saves the browser tabs the user chooses, lets the user organize them, an
 
 **Permission justifications:**
 
-| Permission     | Justification                                                                                                                             |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `tabs`         | Reads the URL and title of the tabs the user chooses to save, closes them after saving, and opens them again when the user restores them. |
-| `storage`      | Stores saved tabs, collections, folders, and settings on the device in chrome.storage.local.                                              |
-| `contextMenus` | Adds right-click menu items to save the current tab, save the tabs to its left or right, and open the TabTuck list.                       |
-| `favicon`      | Shows each saved site's icon from the browser's local favicon cache, so no request is made to an outside icon service.                    |
-| `activeTab`    | When the user saves a tab with the toolbar button, shortcut or right-click menu, lets TabTuck read that one page's declared site name.    |
-| `scripting`    | Reads the site name a saved page declares in its meta tags (og:site_name, application-name), so the list can show the site's real name.   |
+| Permission     | Justification                                                                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tabs`         | Reads the URL and title of the tabs the user chooses to save, closes them after saving, and opens them again when the user restores them.                                         |
+| `storage`      | Stores saved tabs, collections, folders, and settings on the device in chrome.storage.local.                                                                                      |
+| `contextMenus` | Adds right-click menu items to save the current tab, save the tabs to its left or right, and open the TabTuck list.                                                               |
+| `favicon`      | Shows each saved site's icon from the browser's local favicon cache, so no request is made to an outside icon service.                                                            |
+| `activeTab`    | When the user clicks the TabTuck button, uses its shortcut or opens its right-click menu, lets TabTuck read the declared site name of the tab they were on, if they then save it. |
+| `scripting`    | Reads the site name a saved page declares in its meta tags (og:site_name, application-name), so the list can show the site's real name.                                           |
 
 **Are you using remote code?** No, I am not using remote code.
 

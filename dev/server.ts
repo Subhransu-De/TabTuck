@@ -1,4 +1,4 @@
-// The dev server: `bun run dev`, then open http://localhost:5178/ in any
+// The dev server: `bun run dev`, then open http://127.0.0.1:5178/ in any
 // browser. It serves TabTuck's real manager page and background script as a
 // normal web page, with dev/boot.ts supplying the extension APIs and a
 // synthetic library. Edits rebuild only what changed; CSS edits swap the
@@ -12,6 +12,7 @@ import { buildManager } from "../scripts/manager-build.ts";
 const root = path.resolve(import.meta.dirname, "..");
 const src = path.join(root, "src");
 const out = path.join(root, "dist", "TabTuck");
+const manageHtml = path.join(out, "manager", "manage.html");
 const port = Number(process.env.PORT) || 5178;
 
 const run = async (cmd: string[]) => {
@@ -74,7 +75,7 @@ async function rebuild(files: Set<string>) {
       parts.has("static") &&
         copyStatic(staticFiles.filter((f) => files.has(path.join(src, f)))),
       parts.has("background") && buildBackground(),
-      parts.has("manager") && buildManager(out),
+      parts.has("manager") && buildManager(out, { production: false }),
       parts.has("boot") && buildBoot(),
     ]);
   } catch (error) {
@@ -106,6 +107,8 @@ const send = (event: "reload" | "css") => {
 
 const server = Bun.serve({
   port,
+  // This machine only: the page holds whatever data you put in it.
+  hostname: "127.0.0.1",
   idleTimeout: 0,
   async fetch(request) {
     const { pathname, search } = new URL(request.url);
@@ -140,11 +143,23 @@ const server = Bun.serve({
         },
       );
     }
-    const target = path.join(out, path.normalize(decodeURIComponent(pathname)));
+    let target: string;
+    try {
+      target = path.join(out, path.normalize(decodeURIComponent(pathname)));
+      if (target.includes("\0")) throw new URIError("NUL in path");
+    } catch {
+      return new Response("Bad request", { status: 400 });
+    }
     const file = Bun.file(target);
-    if (!target.startsWith(out + path.sep) || !(await file.exists()))
+    if (
+      !target.startsWith(out + path.sep) ||
+      pathname.endsWith("/") ||
+      !(await file.exists())
+    )
       return new Response("Not found", { status: 404 });
-    if (pathname === "/manager/manage.html") {
+    // Compared as resolved paths, so "/MANAGER/manage.html" or
+    // "/manager//manage.html" get the dev boot too.
+    if (path.relative(manageHtml, target) === "") {
       // The dev boot runs first, then the background script registers its
       // message listener, then the page's own module.
       const html = (await file.text()).replace(
@@ -176,9 +191,12 @@ for (const dir of [src, import.meta.dirname])
     timer = setTimeout(() => {
       const files = pending;
       pending = new Set();
-      building = building.then(async () => {
-        if (await rebuild(files)) send("reload");
-      });
+      // A failure is logged and the next change builds again.
+      building = building
+        .then(async () => {
+          if (await rebuild(files)) send("reload");
+        })
+        .catch(console.error);
     }, 80);
   });
 const css = path.join(out, "manager", "manage.css");
@@ -189,7 +207,7 @@ watch(path.dirname(css), (_event, name) => {
   cssTimer = setTimeout(() => send("css"), 50);
 });
 
-console.log(`TabTuck dev server: http://localhost:${server.port}/`);
+console.log(`TabTuck dev server: http://127.0.0.1:${server.port}/`);
 console.log(
   "Pick data with ?scenario=typical|first-run|heavy|naming|bin-expiring|long-text&seed=1",
 );

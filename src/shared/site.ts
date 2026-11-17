@@ -63,7 +63,9 @@ const trimmed = (s: string) =>
 // last, or the one before that under a short country code ("bbc.co.uk").
 // "run" keys may match anywhere; "whole" keys, deeper labels, only as a
 // whole segment. A brand with labels to its left is a parent domain: its bare
-// name names the parent, so "GitHub" never names kevintngo.github.io.
+// name names the parent, so "GitHub" never names kevintngo.github.io. The
+// exception is a single one- or two-letter label on the left, as in
+// "en.wikipedia.org" or "m.example.com": a title spelling the brand names it.
 function keysOf(labels: string[]) {
   const n = labels.length;
   const brands = n === 1 ? [0] : [n - 2];
@@ -76,7 +78,7 @@ function keysOf(labels: string[]) {
     run.add(fold(labels[i]));
     if (i > 0) run.add(fold(labels[i] + labels[i - 1]));
     if (n > 1) run.add(fold(labels.slice(i).join("")));
-    if (i > 0) {
+    if (i > 1 || (i === 1 && labels[0].length > 2)) {
       parent.add(fold(labels[i]));
       parent.add(fold(labels.slice(i).join("")));
     }
@@ -86,27 +88,19 @@ function keysOf(labels: string[]) {
   for (const key of parent) run.delete(key);
   run.delete("");
   whole.delete("");
-  return { run, whole, parent };
+  return { run, whole };
 }
 const byCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-// Short enough to be a name, and not an address or a path.
-const nameShaped = (s: string) =>
-  s.length <= 32 &&
-  s.split(/\s+/).length <= 4 &&
-  /\p{L}/u.test(s) &&
-  !/[./\\@:]/.test(s);
-
 interface Hit {
   titles: number;
   strong: boolean;
   spellings: Map<string, [count: number, whole: number]>;
 }
-// The name the titles give a host, or null. A spelling of the host's own
-// letters wins unless a repeated title ending has more support.
+// The name the titles give a host, or null: the way they spell the host's own
+// letters, such as "GitHub" for github.com.
 function nameFromTitles(labels: string[], titles: string[]) {
-  const { run, whole, parent } = keysOf(labels);
+  const { run, whole } = keysOf(labels);
   const hits = new Map<string, Hit>();
-  const ends = new Map<string, [count: number, split: number]>();
   for (const title of titles) {
     const segments = segmentsOf(title);
     const seen = new Set<string>();
@@ -140,14 +134,6 @@ function nameFromTitles(labels: string[], titles: string[]) {
         }
       }
     }
-    const outer =
-      segments.length > 1 ? [segments[0], segments.at(-1)!] : segments;
-    for (const end of new Set(outer)) {
-      const tally = ends.get(end) ?? [0, 0];
-      tally[0]++;
-      if (segments.length > 1) tally[1]++;
-      ends.set(end, tally);
-    }
   }
   const best = [...hits].sort(
     (a, b) =>
@@ -156,36 +142,14 @@ function nameFromTitles(labels: string[], titles: string[]) {
       b[1].titles - a[1].titles ||
       byCode(a[0], b[0]),
   )[0];
-  const spelled = best && {
-    name: [...best[1].spellings].sort(
-      (a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1] || byCode(a[0], b[0]),
-    )[0][0],
-    support: best[1].titles,
-  };
-  // A title ending on 3 or more distinct titles, more than half of them,
-  // with no rival as common.
-  const ranked = [...ends]
-    .filter(([s]) => nameShaped(s) && !parent.has(fold(s)))
-    .sort((a, b) => b[1][0] - a[1][0]);
-  const top = ranked[0]?.[1];
-  const repeated =
-    top &&
-    top[0] >= 3 &&
-    top[1] >= 2 &&
-    top[0] * 2 > titles.length &&
-    (ranked.length < 2 || ranked[1][1][0] < top[0])
-      ? { name: ranked[0][0], support: top[0] }
-      : null;
-  if (repeated && (!spelled || repeated.support > spelled.support))
-    return repeated.name;
-  return spelled?.name ?? null;
+  if (!best) return null;
+  return [...best[1].spellings].sort(
+    (a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1] || byCode(a[0], b[0]),
+  )[0][0];
 }
 // The host's first label, capitalised: "github.com" -> "Github",
-// "example.github.io" -> "Example". A one- or two-letter first label, as in
-// "en.wikipedia.org" or "m.example.com", is skipped.
-function firstLabel(labels: string[]) {
-  const label =
-    labels.length > 2 && labels[0].length <= 2 ? labels[1] : labels[0];
+// "example.github.io" -> "Example".
+function firstLabel([label]: string[]) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 

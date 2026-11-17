@@ -53,14 +53,20 @@ test("with nothing better, a host is named by its first label", () => {
     intranet: "Intranet",
   });
 });
-test("a one- or two-letter first label is skipped", () => {
-  expect(name("https://en.wikipedia.org/wiki/Rust | Rust")).toEqual({
+test("a short first label takes the brand only when a title spells it", () => {
+  expect(
+    name(
+      "https://en.wikipedia.org/wiki/Rust | Rust - Wikipedia",
+      "https://m.example.com/ | Home",
+      "https://jo.github.io/ | Jo's notes",
+      "https://x.ai/ | Home",
+    ),
+  ).toEqual({
     "en.wikipedia.org": "Wikipedia",
+    "m.example.com": "M",
+    "jo.github.io": "Jo",
+    "x.ai": "X",
   });
-  expect(name("https://m.example.com/ | Home")).toEqual({
-    "m.example.com": "Example",
-  });
-  expect(name("https://x.ai/ | Home")).toEqual({ "x.ai": "X" });
 });
 test("a title that spells the host gives the site's own spelling", () => {
   expect(
@@ -94,28 +100,17 @@ test("a parent domain's name never names its subdomain", () => {
     "kevintngo.github.io": "Kevin T Ngo",
   });
 });
-test("a title ending repeated on most pages names the site", () => {
+test("a repeated title ending does not name the site", () => {
   expect(
     name(
       "https://news.ycombinator.com/item?id=1 | Show HN: A tab manager | Hacker News",
       "https://news.ycombinator.com/item?id=2 | Ask HN: Tools? | Hacker News",
       "https://news.ycombinator.com/ | Hacker News",
-      "https://www.zhihu.com/q/1 | 问题一 - 知乎",
-      "https://www.zhihu.com/q/2 | 问题二 - 知乎",
-      "https://www.zhihu.com/q/3 | 问题三 - 知乎",
+      "https://shop.example/a | a - Home",
+      "https://shop.example/b | b - Home",
+      "https://shop.example/c | c - Home",
     ),
-  ).toEqual({ "news.ycombinator.com": "Hacker News", "zhihu.com": "知乎" });
-  // File names are not names, and one page counts once however often saved.
-  expect(
-    name(
-      "https://cdn.example/1 | IMG_0001.jpg",
-      "https://cdn.example/2 | IMG_0002.jpg",
-      "https://cdn.example/3 | IMG_0003.jpg",
-      "https://sso.example/1 | Sign in - Portal",
-      "https://sso.example/2 | Sign in - Portal",
-      "https://sso.example/3 | Sign in - Portal",
-    ),
-  ).toEqual({ "cdn.example": "Cdn", "sso.example": "Sso" });
+  ).toEqual({ "news.ycombinator.com": "News", "shop.example": "Shop" });
 });
 test("the name a page declares wins over every guess", () => {
   expect(

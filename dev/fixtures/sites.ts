@@ -1,7 +1,7 @@
 // Made-up sites under the reserved .example and .test names, so dev data
 // never names a real site. Each kind of site exercises one way TabTuck names
-// a site: a declared name, its own spelling in titles, a repeated title
-// ending, or its host's first label.
+// a site: a declared name, its own spelling in titles, or its host's first
+// label.
 import { capital, type Random } from "./random.ts";
 import type { OpenPage } from "../extension-api/tabs.ts";
 
@@ -136,7 +136,8 @@ function productSubdomain(r: Random): Site {
     }),
   };
 }
-// A forum whose titles end in a name its host does not spell.
+// A forum whose titles end in a name its host does not spell, so it keeps
+// its first label.
 function forum(r: Random): Site {
   const host = `news.${r.pick(PARTS)}.test`;
   const name = `${capital(r.pick(PARTS))} Talk`;

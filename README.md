@@ -74,7 +74,7 @@ Edit `src/manager/manage.css`; compiled CSS is generated only in `dist/TabTuck/m
 
 ### Dev server
 
-`make dev` serves the manager at http://localhost:5178/ (set `PORT` to change it). Open it in any browser; no extension install is needed. The page runs TabTuck's real manager and background code. `dev/extension-api/` supplies the `chrome.*` calls they make, keeping saved data in the page's `localStorage` and a window of demo tabs to save. Edits rebuild only the bundle they touch and reload the page; CSS edits swap the stylesheet without a reload.
+`make dev` serves the manager at http://127.0.0.1:5178/ (set `PORT` to change it). It listens on this machine only. Open it in any browser; no extension install is needed. The page runs TabTuck's real manager and background code. `dev/extension-api/` supplies the `chrome.*` calls they make, keeping saved data in the page's `localStorage` and a window of demo tabs to save. Edits rebuild only the bundle they touch and reload the page; CSS edits swap the stylesheet without a reload.
 
 Pick a data set with `?scenario=<name>&seed=<number>`, or from the Dev button in the corner, which can also reset the data, reopen the demo tabs and move the clock by whole days. Each scenario and seed keeps its own data.
 
